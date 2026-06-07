@@ -264,6 +264,28 @@ struct SettingsView: View {
                 }
             }
 
+            // Command layer
+            VStack(alignment: .leading, spacing: 6) {
+                Label("Command 层", systemImage: "command")
+                    .font(.system(size: 12, weight: .bold))
+                    .foregroundStyle(.secondary)
+
+                HStack(spacing: 10) {
+                    ShortcutTile(
+                        icon: "backward.fill",
+                        title: "上一曲",
+                        keys: appState.enhancedEdgeDetection ? ["Command", "左边缘"] : ["Command"],
+                        tint: .red
+                    )
+                    ShortcutTile(
+                        icon: "forward.fill",
+                        title: "下一曲",
+                        keys: appState.enhancedEdgeDetection ? ["Command", "右边缘"] : ["Command"],
+                        tint: .blue
+                    )
+                }
+            }
+
             ToggleRow(
                 title: "增强左右边缘识别",
                 subtitle: "左边缘/右边缘分别控制不同目标",

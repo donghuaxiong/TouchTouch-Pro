@@ -7,6 +7,8 @@ enum ControlTarget: String {
     case volume
     case keyboardBacklight
     case microphoneVolume
+    case previousTrack
+    case nextTrack
 }
 
 enum AdjustmentDirection: String {
@@ -182,12 +184,19 @@ final class TrackpadEventMonitor {
                let target = enhancedEdgeTarget(edgeWidth: configuration.edgeWidth, modifier: .control) {
                 return target
             }
+            if modifierFlags.contains(.command),
+               let target = enhancedEdgeTarget(edgeWidth: configuration.edgeWidth, modifier: .command) {
+                return target
+            }
         }
         if modifierFlags.contains(.option) {
             return .brightness
         }
         if modifierFlags.contains(.control) {
             return .keyboardBacklight
+        }
+        if modifierFlags.contains(.command) {
+            return .previousTrack
         }
         return nil
     }
@@ -206,12 +215,19 @@ final class TrackpadEventMonitor {
                let target = enhancedEdgeTarget(edgeWidth: configuration.edgeWidth, modifier: .control) {
                 return target
             }
+            if flags.contains(.command),
+               let target = enhancedEdgeTarget(edgeWidth: configuration.edgeWidth, modifier: .command) {
+                return target
+            }
         }
         if flags.contains(.option) {
             return .brightness
         }
         if flags.contains(.control) {
             return .keyboardBacklight
+        }
+        if flags.contains(.command) {
+            return .previousTrack
         }
         return nil
     }
@@ -258,10 +274,16 @@ final class TrackpadEventMonitor {
     private func enhancedEdgeTarget(edgeWidth: Double, modifier: NSEvent.ModifierFlags) -> ControlTarget? {
         guard let averageX = multiTouchManager.recentAverageX() else { return nil }
         if averageX <= edgeWidth {
-            return modifier == .option ? .brightness : .keyboardBacklight
+            if modifier == .option { return .brightness }
+            if modifier == .control { return .keyboardBacklight }
+            if modifier == .command { return .previousTrack }
+            return nil
         }
         if averageX >= 1 - edgeWidth {
-            return modifier == .option ? .volume : .microphoneVolume
+            if modifier == .option { return .volume }
+            if modifier == .control { return .microphoneVolume }
+            if modifier == .command { return .nextTrack }
+            return nil
         }
         return nil
     }

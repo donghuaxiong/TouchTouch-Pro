@@ -13,8 +13,8 @@ final class HUDManager {
         let state = state ?? HUDState(target: target, value: value, usesDarkBackground: usesDarkBackground)
         let panel = panel ?? makePanel(state: state)
 
+        state.target = target // instant switch, no cross-fade
         withAnimation(.interactiveSpring(response: 0.22, dampingFraction: 0.88, blendDuration: 0.08)) {
-            state.target = target
             state.value = min(max(value, 0), 1)
             state.usesDarkBackground = usesDarkBackground
         }
@@ -53,6 +53,10 @@ private final class HUDState: ObservableObject {
     @Published var target: ControlTarget
     @Published var value: Double
     @Published var usesDarkBackground: Bool
+
+    var isTrackSkip: Bool {
+        target == .previousTrack || target == .nextTrack
+    }
 
     init(target: ControlTarget, value: Double, usesDarkBackground: Bool) {
         self.target = target
@@ -94,13 +98,18 @@ private struct HUDView: View {
                         KeyboardBacklightHUDIcon(value: state.value, color: iconColor)
                     case .microphoneVolume:
                         MicrophoneHUDIcon(level: volumeLevel, color: iconColor)
+                    case .previousTrack:
+                        TrackSkipHUDIcon(direction: .decrease, color: iconColor)
+                    case .nextTrack:
+                        TrackSkipHUDIcon(direction: .increase, color: iconColor)
                     }
                 }
                 .frame(width: 82, height: 76)
-                .animation(.easeOut(duration: 0.16), value: state.target)
                 .animation(.interactiveSpring(response: 0.22, dampingFraction: 0.86), value: state.value)
 
-                HUDProgressBar(value: state.value, fillColor: progressColor)
+                if !state.isTrackSkip {
+                    HUDProgressBar(value: state.value, fillColor: progressColor)
+                }
             }
             .padding(.top, 12)
         }
@@ -128,6 +137,7 @@ private struct HUDView: View {
         case .brightness: return brightnessColor
         case .keyboardBacklight: return keyboardBacklightColor
         case .microphoneVolume: return microphoneColor
+        case .previousTrack, .nextTrack: return Color(red: 1.0, green: 0.45, blue: 0.35)
         default: return iconColor
         }
     }
@@ -430,5 +440,25 @@ private struct HUDProgressBar: View {
     private func fillWidth(in totalWidth: CGFloat) -> CGFloat {
         guard normalizedValue > 0 else { return 0 }
         return max(10, totalWidth * normalizedValue)
+    }
+}
+
+// MARK: - Track Skip HUD Icon
+
+private struct TrackSkipHUDIcon: View {
+    let direction: AdjustmentDirection
+    let color: Color
+
+    var body: some View {
+        ZStack {
+            Circle()
+                .fill(color.opacity(0.12))
+                .frame(width: 56, height: 56)
+
+            Image(systemName: direction == .decrease ? "backward.fill" : "forward.fill")
+                .font(.system(size: 28, weight: .medium))
+                .foregroundStyle(color)
+        }
+        .animation(.interactiveSpring(response: 0.2, dampingFraction: 0.9), value: direction)
     }
 }

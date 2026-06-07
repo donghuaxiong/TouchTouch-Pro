@@ -69,8 +69,10 @@ final class AppState: ObservableObject {
     private let volumeManager = VolumeManager()
     private let keyboardBacklightManager = KeyboardBacklightManager()
     private let microphoneVolumeManager = MicrophoneVolumeManager()
+    private let mediaControlManager = MediaControlManager()
     private let hudManager = HUDManager()
     private let hapticManager = HapticManager()
+    private var lastTrackSkipDate = Date.distantPast
     private lazy var eventMonitor = TrackpadEventMonitor(
         configurationProvider: { [weak self] in
             self?.monitorConfiguration ?? .default
@@ -164,6 +166,16 @@ final class AppState: ObservableObject {
             value = keyboardBacklightManager.adjust(by: signedMultiplier * keyboardBacklightStep)
         case .microphoneVolume:
             value = microphoneVolumeManager.adjust(by: signedMultiplier * microphoneStep)
+        case .previousTrack:
+            guard Date().timeIntervalSince(lastTrackSkipDate) > 0.5 else { return }
+            mediaControlManager.previousTrack()
+            lastTrackSkipDate = Date()
+            value = 0.5
+        case .nextTrack:
+            guard Date().timeIntervalSince(lastTrackSkipDate) > 0.5 else { return }
+            mediaControlManager.nextTrack()
+            lastTrackSkipDate = Date()
+            value = 0.5
         }
 
         if usesHaptics {
