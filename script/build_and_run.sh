@@ -20,11 +20,18 @@ pkill -x "TrackEdge" >/dev/null 2>&1 || true
 
 swift build
 BUILD_BINARY="$(swift build --show-bin-path)/$APP_NAME"
+BUILD_KB_TOOL="$(swift build --show-bin-path)/kb-brightness"
 
 rm -rf "$APP_BUNDLE"
 mkdir -p "$APP_MACOS"
 cp "$BUILD_BINARY" "$APP_BINARY"
 chmod +x "$APP_BINARY"
+
+# Bundle kb-brightness CLI tool
+if [ -f "$BUILD_KB_TOOL" ]; then
+  cp "$BUILD_KB_TOOL" "$APP_MACOS/kb-brightness"
+  chmod +x "$APP_MACOS/kb-brightness"
+fi
 
 cat >"$INFO_PLIST" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>

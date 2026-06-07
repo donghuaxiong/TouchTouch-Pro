@@ -69,6 +69,8 @@ private struct HUDView: View {
     }
 
     private let brightnessColor = Color(red: 1.0, green: 0.62, blue: 0.0)
+    private let keyboardBacklightColor = Color(red: 0.45, green: 0.55, blue: 0.95)
+    private let microphoneColor = Color(red: 0.35, green: 0.78, blue: 0.55)
 
     var body: some View {
         ZStack {
@@ -88,6 +90,10 @@ private struct HUDView: View {
                         SunHUDIcon(value: state.value, color: iconColor)
                     case .volume:
                         VolumeHUDIcon(level: volumeLevel, color: iconColor)
+                    case .keyboardBacklight:
+                        KeyboardBacklightHUDIcon(value: state.value, color: iconColor)
+                    case .microphoneVolume:
+                        MicrophoneHUDIcon(level: volumeLevel, color: iconColor)
                     }
                 }
                 .frame(width: 82, height: 76)
@@ -118,7 +124,12 @@ private struct HUDView: View {
     }
 
     private var progressColor: Color {
-        state.target == .brightness ? brightnessColor : iconColor
+        switch state.target {
+        case .brightness: return brightnessColor
+        case .keyboardBacklight: return keyboardBacklightColor
+        case .microphoneVolume: return microphoneColor
+        default: return iconColor
+        }
     }
 
     private var strokeColor: Color {
@@ -285,6 +296,110 @@ private struct MuteSlashLine: Shape {
         path.move(to: CGPoint(x: w * 0.28, y: h * 0.72))
         path.addLine(to: CGPoint(x: w * 0.64, y: h * 0.28))
         return path
+    }
+}
+
+private struct KeyboardBacklightHUDIcon: View {
+    let value: Double
+    let color: Color
+
+    private var normalizedValue: Double {
+        min(max(value, 0), 1)
+    }
+
+    var body: some View {
+        ZStack {
+            // Keyboard base
+            RoundedRectangle(cornerRadius: 6, style: .continuous)
+                .stroke(color.opacity(0.5), lineWidth: 3)
+                .frame(width: 64, height: 42)
+                .offset(y: 6)
+
+            // Keys (3x3 grid)
+            VStack(spacing: 4) {
+                HStack(spacing: 4) {
+                    ForEach(0..<4, id: \.self) { _ in
+                        RoundedRectangle(cornerRadius: 1.5, style: .continuous)
+                            .fill(color.opacity(0.3 + normalizedValue * 0.7))
+                            .frame(width: 10, height: 6)
+                    }
+                }
+                HStack(spacing: 4) {
+                    ForEach(0..<4, id: \.self) { _ in
+                        RoundedRectangle(cornerRadius: 1.5, style: .continuous)
+                            .fill(color.opacity(0.3 + normalizedValue * 0.7))
+                            .frame(width: 10, height: 6)
+                    }
+                }
+                HStack(spacing: 4) {
+                    RoundedRectangle(cornerRadius: 1.5, style: .continuous)
+                        .fill(color.opacity(0.3 + normalizedValue * 0.7))
+                        .frame(width: 30, height: 6)
+                }
+            }
+            .offset(y: 4)
+
+            // Glow effect
+            RoundedRectangle(cornerRadius: 6, style: .continuous)
+                .fill(color.opacity(normalizedValue * 0.15))
+                .frame(width: 64, height: 42)
+                .blur(radius: 8)
+                .offset(y: 6)
+        }
+    }
+}
+
+private struct MicrophoneHUDIcon: View {
+    let level: Int
+    let color: Color
+
+    var body: some View {
+        ZStack {
+            // Mic capsule body
+            Capsule(style: .continuous)
+                .fill(color.opacity(0.25))
+                .frame(width: 24, height: 40)
+                .overlay(
+                    Capsule(style: .continuous)
+                        .fill(color)
+                        .frame(width: 24, height: 12 + CGFloat(level) * 7)
+                        .offset(y: 14 - CGFloat(level) * 3.5)
+                )
+                .overlay(
+                    Capsule(style: .continuous)
+                        .stroke(color.opacity(0.6), lineWidth: 3)
+                        .frame(width: 24, height: 40)
+                )
+
+            // Mic stand arc
+            Path { path in
+                path.addArc(
+                    center: CGPoint(x: 41, y: 38),
+                    radius: 22,
+                    startAngle: .degrees(30),
+                    endAngle: .degrees(150),
+                    clockwise: false
+                )
+            }
+            .stroke(color.opacity(0.55), style: StrokeStyle(lineWidth: 3.5, lineCap: .round))
+            .frame(width: 82, height: 76)
+
+            // Stand stem
+            Capsule(style: .continuous)
+                .fill(color.opacity(0.55))
+                .frame(width: 4, height: 12)
+                .offset(y: 28)
+
+            // Mute slash when level is 0
+            if level == 0 {
+                Path { path in
+                    path.move(to: CGPoint(x: 18, y: 62))
+                    path.addLine(to: CGPoint(x: 62, y: 18))
+                }
+                .stroke(Color.red.opacity(0.75), style: StrokeStyle(lineWidth: 6, lineCap: .round))
+                .frame(width: 82, height: 76)
+            }
+        }
     }
 }
 

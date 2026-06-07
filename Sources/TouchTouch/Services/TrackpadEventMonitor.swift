@@ -5,6 +5,8 @@ import Foundation
 enum ControlTarget: String {
     case brightness
     case volume
+    case keyboardBacklight
+    case microphoneVolume
 }
 
 enum AdjustmentDirection: String {
@@ -171,16 +173,21 @@ final class TrackpadEventMonitor {
         configuration: Configuration
     ) -> ControlTarget? {
         let modifierFlags = effectiveModifierFlags(for: event)
-        if configuration.enhancedEdgeDetection,
-           modifierFlags.contains(.option),
-           let target = enhancedEdgeTarget(edgeWidth: configuration.edgeWidth) {
-            return target
+        if configuration.enhancedEdgeDetection {
+            if modifierFlags.contains(.option),
+               let target = enhancedEdgeTarget(edgeWidth: configuration.edgeWidth, modifier: .option) {
+                return target
+            }
+            if modifierFlags.contains(.control),
+               let target = enhancedEdgeTarget(edgeWidth: configuration.edgeWidth, modifier: .control) {
+                return target
+            }
         }
         if modifierFlags.contains(.option) {
             return .brightness
         }
-        if modifierFlags.contains(.command) {
-            return .volume
+        if modifierFlags.contains(.control) {
+            return .keyboardBacklight
         }
         return nil
     }
@@ -190,16 +197,21 @@ final class TrackpadEventMonitor {
         configuration: Configuration
     ) -> ControlTarget? {
         let flags = effectiveModifierFlags(for: event)
-        if configuration.enhancedEdgeDetection,
-           flags.contains(.option),
-           let target = enhancedEdgeTarget(edgeWidth: configuration.edgeWidth) {
-            return target
+        if configuration.enhancedEdgeDetection {
+            if flags.contains(.option),
+               let target = enhancedEdgeTarget(edgeWidth: configuration.edgeWidth, modifier: .option) {
+                return target
+            }
+            if flags.contains(.control),
+               let target = enhancedEdgeTarget(edgeWidth: configuration.edgeWidth, modifier: .control) {
+                return target
+            }
         }
         if flags.contains(.option) {
             return .brightness
         }
-        if flags.contains(.command) {
-            return .volume
+        if flags.contains(.control) {
+            return .keyboardBacklight
         }
         return nil
     }
@@ -212,6 +224,9 @@ final class TrackpadEventMonitor {
         }
         if sessionFlags.contains(.maskCommand) {
             modifierFlags.insert(.command)
+        }
+        if sessionFlags.contains(.maskControl) {
+            modifierFlags.insert(.control)
         }
         return modifierFlags
     }
@@ -226,6 +241,9 @@ final class TrackpadEventMonitor {
         if eventFlags.contains(.maskCommand) || sessionFlags.contains(.maskCommand) {
             modifierFlags.insert(.command)
         }
+        if eventFlags.contains(.maskControl) || sessionFlags.contains(.maskControl) {
+            modifierFlags.insert(.control)
+        }
         return modifierFlags
     }
 
@@ -237,13 +255,13 @@ final class TrackpadEventMonitor {
         return Double(event.getIntegerValueField(.scrollWheelEventDeltaAxis1))
     }
 
-    private func enhancedEdgeTarget(edgeWidth: Double) -> ControlTarget? {
+    private func enhancedEdgeTarget(edgeWidth: Double, modifier: NSEvent.ModifierFlags) -> ControlTarget? {
         guard let averageX = multiTouchManager.recentAverageX() else { return nil }
         if averageX <= edgeWidth {
-            return .brightness
+            return modifier == .option ? .brightness : .keyboardBacklight
         }
         if averageX >= 1 - edgeWidth {
-            return .volume
+            return modifier == .option ? .volume : .microphoneVolume
         }
         return nil
     }
@@ -340,8 +358,10 @@ final class TrackpadEventMonitor {
         let sessionFlags = CGEventSource.flagsState(.combinedSessionState)
         return flags.contains(.maskAlternate)
             || flags.contains(.maskCommand)
+            || flags.contains(.maskControl)
             || sessionFlags.contains(.maskAlternate)
             || sessionFlags.contains(.maskCommand)
+            || sessionFlags.contains(.maskControl)
     }
 
     private func isMomentumScroll(_ event: CGEvent) -> Bool {
@@ -351,7 +371,9 @@ final class TrackpadEventMonitor {
 
     private func currentModifierFlagsStillContainTrigger() -> Bool {
         let sessionFlags = CGEventSource.flagsState(.combinedSessionState)
-        return sessionFlags.contains(.maskAlternate) || sessionFlags.contains(.maskCommand)
+        return sessionFlags.contains(.maskAlternate)
+            || sessionFlags.contains(.maskCommand)
+            || sessionFlags.contains(.maskControl)
     }
 
     private func stopEventTap() {

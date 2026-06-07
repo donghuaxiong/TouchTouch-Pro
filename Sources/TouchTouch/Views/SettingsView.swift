@@ -210,26 +210,55 @@ struct SettingsView: View {
 
     private var controlContent: some View {
         VStack(alignment: .leading, spacing: 14) {
-            sectionHeader(title: "控制方式", subtitle: "选择触发方式和滑动方向")
+            sectionHeader(title: "修饰键分层", subtitle: "Option 和 Control 分别控制不同目标")
 
-            HStack(spacing: 10) {
-                ShortcutTile(
-                    icon: "sun.max.fill",
-                    title: "亮度",
-                    keys: appState.enhancedEdgeDetection ? ["Option", "左边缘"] : ["Option"],
-                    tint: .orange
-                )
-                ShortcutTile(
-                    icon: "speaker.wave.2.fill",
-                    title: "音量",
-                    keys: appState.enhancedEdgeDetection ? ["Option", "右边缘"] : ["Command"],
-                    tint: .blue
-                )
+            // Option layer
+            VStack(alignment: .leading, spacing: 6) {
+                Label("Option 层", systemImage: "option")
+                    .font(.system(size: 12, weight: .bold))
+                    .foregroundStyle(.secondary)
+
+                HStack(spacing: 10) {
+                    ShortcutTile(
+                        icon: "sun.max.fill",
+                        title: "屏幕亮度",
+                        keys: appState.enhancedEdgeDetection ? ["Option", "左边缘"] : ["Option"],
+                        tint: .orange
+                    )
+                    ShortcutTile(
+                        icon: "speaker.wave.2.fill",
+                        title: "系统音量",
+                        keys: appState.enhancedEdgeDetection ? ["Option", "右边缘"] : ["Option"],
+                        tint: .blue
+                    )
+                }
+            }
+
+            // Control layer
+            VStack(alignment: .leading, spacing: 6) {
+                Label("Control 层", systemImage: "control")
+                    .font(.system(size: 12, weight: .bold))
+                    .foregroundStyle(.secondary)
+
+                HStack(spacing: 10) {
+                    ShortcutTile(
+                        icon: "light.max",
+                        title: "键盘背光",
+                        keys: appState.enhancedEdgeDetection ? ["Control", "左边缘"] : ["Control"],
+                        tint: .indigo
+                    )
+                    ShortcutTile(
+                        icon: "mic.fill",
+                        title: "麦克风音量",
+                        keys: appState.enhancedEdgeDetection ? ["Control", "右边缘"] : ["Control"],
+                        tint: .green
+                    )
+                }
             }
 
             ToggleRow(
                 title: "增强左右边缘识别",
-                subtitle: "Option + 左边缘调亮度，右边缘调音量",
+                subtitle: "左边缘/右边缘分别控制不同目标",
                 systemImage: "sparkles",
                 isOn: $appState.enhancedEdgeDetection
             )
@@ -276,6 +305,20 @@ struct SettingsView: View {
             DesignedSlider(
                 title: "音量步长",
                 value: $appState.volumeStep,
+                range: 0.01...0.10,
+                suffix: "%",
+                scale: 100
+            )
+            DesignedSlider(
+                title: "键盘背光步长",
+                value: $appState.keyboardBacklightStep,
+                range: 0.01...0.10,
+                suffix: "%",
+                scale: 100
+            )
+            DesignedSlider(
+                title: "麦克风步长",
+                value: $appState.microphoneStep,
                 range: 0.01...0.10,
                 suffix: "%",
                 scale: 100
@@ -384,6 +427,12 @@ struct SettingsView: View {
 
                 HStack {
                     Text(appState.brightnessStatus)
+                        .foregroundStyle(.secondary)
+                    Spacer()
+                }
+
+                HStack {
+                    Text(appState.keyboardBacklightStatus)
                         .foregroundStyle(.secondary)
                     Spacer()
                 }

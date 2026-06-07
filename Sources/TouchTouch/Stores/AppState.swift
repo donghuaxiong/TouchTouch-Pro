@@ -20,6 +20,14 @@ final class AppState: ObservableObject {
         didSet { defaults.set(volumeStep, forKey: Keys.volumeStep) }
     }
 
+    @Published var keyboardBacklightStep: Double {
+        didSet { defaults.set(keyboardBacklightStep, forKey: Keys.keyboardBacklightStep) }
+    }
+
+    @Published var microphoneStep: Double {
+        didSet { defaults.set(microphoneStep, forKey: Keys.microphoneStep) }
+    }
+
     @Published var enhancedEdgeDetection: Bool {
         didSet { defaults.set(enhancedEdgeDetection, forKey: Keys.enhancedEdgeDetection) }
     }
@@ -59,6 +67,8 @@ final class AppState: ObservableObject {
     private let defaults = UserDefaults.standard
     private let brightnessManager = BrightnessManager()
     private let volumeManager = VolumeManager()
+    private let keyboardBacklightManager = KeyboardBacklightManager()
+    private let microphoneVolumeManager = MicrophoneVolumeManager()
     private let hudManager = HUDManager()
     private let hapticManager = HapticManager()
     private lazy var eventMonitor = TrackpadEventMonitor(
@@ -75,6 +85,8 @@ final class AppState: ObservableObject {
             Keys.isEnabled: true,
             Keys.brightnessStep: 0.05,
             Keys.volumeStep: 0.05,
+            Keys.keyboardBacklightStep: 0.05,
+            Keys.microphoneStep: 0.05,
             Keys.enhancedEdgeDetection: true,
             Keys.edgeWidth: 0.22,
             Keys.scrollThreshold: 10.0,
@@ -89,6 +101,8 @@ final class AppState: ObservableObject {
         isEnabled = defaults.bool(forKey: Keys.isEnabled)
         brightnessStep = defaults.double(forKey: Keys.brightnessStep)
         volumeStep = defaults.double(forKey: Keys.volumeStep)
+        keyboardBacklightStep = defaults.double(forKey: Keys.keyboardBacklightStep)
+        microphoneStep = defaults.double(forKey: Keys.microphoneStep)
         enhancedEdgeDetection = defaults.bool(forKey: Keys.enhancedEdgeDetection)
         edgeWidth = defaults.double(forKey: Keys.edgeWidth)
         scrollThreshold = defaults.double(forKey: Keys.scrollThreshold)
@@ -108,6 +122,10 @@ final class AppState: ObservableObject {
 
     var brightnessStatus: String {
         brightnessManager.statusDescription
+    }
+
+    var keyboardBacklightStatus: String {
+        keyboardBacklightManager.statusDescription
     }
 
     func requestPermissions() {
@@ -142,6 +160,10 @@ final class AppState: ObservableObject {
             value = brightnessManager.adjust(by: signedMultiplier * brightnessStep)
         case .volume:
             value = volumeManager.adjust(by: signedMultiplier * volumeStep)
+        case .keyboardBacklight:
+            value = keyboardBacklightManager.adjust(by: signedMultiplier * keyboardBacklightStep)
+        case .microphoneVolume:
+            value = microphoneVolumeManager.adjust(by: signedMultiplier * microphoneStep)
         }
 
         if usesHaptics {
@@ -157,6 +179,8 @@ final class AppState: ObservableObject {
         static let isEnabled = "isEnabled"
         static let brightnessStep = "brightnessStep"
         static let volumeStep = "volumeStep"
+        static let keyboardBacklightStep = "keyboardBacklightStep"
+        static let microphoneStep = "microphoneStep"
         static let enhancedEdgeDetection = "enhancedEdgeDetection"
         static let edgeWidth = "edgeWidth"
         static let scrollThreshold = "scrollThreshold"
