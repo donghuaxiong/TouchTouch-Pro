@@ -7,7 +7,7 @@ struct TouchTouchApp: App {
     @StateObject private var appState = AppState()
 
     var body: some Scene {
-        MenuBarExtra("TouchTouch", systemImage: "rectangle.and.hand.point.up.left") {
+        MenuBarExtra("TouchTouch Pro", systemImage: "rectangle.and.hand.point.up.left") {
             SettingsView(appState: appState)
         }
         .menuBarExtraStyle(.window)

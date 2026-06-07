@@ -2,6 +2,7 @@
 set -euo pipefail
 
 APP_NAME="TouchTouch"
+DISPLAY_NAME="TouchTouch Pro"
 BUNDLE_ID="com.local.TouchTouch"
 MIN_SYSTEM_VERSION="13.0"
 ICON_NAME="AppIcon"
@@ -53,9 +54,9 @@ cat >"$INFO_PLIST" <<PLIST
     <key>CFBundleIdentifier</key>
     <string>$BUNDLE_ID</string>
     <key>CFBundleName</key>
-    <string>$APP_NAME</string>
+    <string>$DISPLAY_NAME</string>
     <key>CFBundleDisplayName</key>
-    <string>$APP_NAME</string>
+    <string>$DISPLAY_NAME</string>
     <key>CFBundleVersion</key>
     <string>1</string>
     <key>CFBundleShortVersionString</key>

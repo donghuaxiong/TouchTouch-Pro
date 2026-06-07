@@ -77,7 +77,7 @@ struct SettingsView: View {
             .shadow(color: Color.accentColor.opacity(0.24), radius: 12, x: 0, y: 6)
 
             VStack(alignment: .leading, spacing: 3) {
-                Text("TouchTouch")
+                Text("TouchTouch Pro")
                     .font(.system(size: 21, weight: .bold))
                 Text("触控板边缘控制")
                     .font(.caption)
