@@ -3,6 +3,8 @@ import Foundation
 
 @MainActor
 final class AppState: ObservableObject {
+    static let shared = AppState()
+
     @Published var isEnabled: Bool {
         didSet {
             defaults.set(isEnabled, forKey: Keys.isEnabled)
