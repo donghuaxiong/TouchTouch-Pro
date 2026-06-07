@@ -134,6 +134,14 @@ struct SettingsView: View {
                     )
             }
         }
+        .gesture(
+            DragGesture(minimumDistance: 5)
+                .onChanged { _ in
+                    if let window = NSApp.keyWindow, let event = NSApp.currentEvent {
+                        window.performDrag(with: event)
+                    }
+                }
+        )
     }
 
     // MARK: - Sidebar
