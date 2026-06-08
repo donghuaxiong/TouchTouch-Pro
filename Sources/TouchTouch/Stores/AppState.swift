@@ -13,19 +13,31 @@ final class AppState: ObservableObject {
     }
 
     @Published var brightnessStep: Double {
-        didSet { defaults.set(brightnessStep, forKey: Keys.brightnessStep) }
+        didSet {
+            defaults.set(brightnessStep, forKey: Keys.brightnessStep)
+            actionDispatcher.brightnessStep = brightnessStep
+        }
     }
 
     @Published var volumeStep: Double {
-        didSet { defaults.set(volumeStep, forKey: Keys.volumeStep) }
+        didSet {
+            defaults.set(volumeStep, forKey: Keys.volumeStep)
+            actionDispatcher.volumeStep = volumeStep
+        }
     }
 
     @Published var keyboardBacklightStep: Double {
-        didSet { defaults.set(keyboardBacklightStep, forKey: Keys.keyboardBacklightStep) }
+        didSet {
+            defaults.set(keyboardBacklightStep, forKey: Keys.keyboardBacklightStep)
+            actionDispatcher.keyboardBacklightStep = keyboardBacklightStep
+        }
     }
 
     @Published var microphoneStep: Double {
-        didSet { defaults.set(microphoneStep, forKey: Keys.microphoneStep) }
+        didSet {
+            defaults.set(microphoneStep, forKey: Keys.microphoneStep)
+            actionDispatcher.microphoneStep = microphoneStep
+        }
     }
 
     @Published var enhancedEdgeDetection: Bool {
@@ -65,14 +77,9 @@ final class AppState: ObservableObject {
     }
 
     private let defaults = UserDefaults.standard
-    private let brightnessManager = BrightnessManager()
-    private let volumeManager = VolumeManager()
-    private let keyboardBacklightManager = KeyboardBacklightManager()
-    private let microphoneVolumeManager = MicrophoneVolumeManager()
-    private let mediaControlManager = MediaControlManager()
+    private let actionDispatcher = ActionDispatcher()
     private let hudManager = HUDManager()
     private let hapticManager = HapticManager()
-    private var lastTrackSkipDate = Date.distantPast
     private lazy var eventMonitor = TrackpadEventMonitor(
         configurationProvider: { [weak self] in
             self?.monitorConfiguration ?? .default
@@ -123,11 +130,11 @@ final class AppState: ObservableObject {
     }
 
     var brightnessStatus: String {
-        brightnessManager.statusDescription
+        actionDispatcher.brightnessStatus
     }
 
     var keyboardBacklightStatus: String {
-        keyboardBacklightManager.statusDescription
+        actionDispatcher.keyboardBacklightStatus
     }
 
     func requestPermissions() {
@@ -152,38 +159,24 @@ final class AppState: ObservableObject {
         )
     }
 
-    private func perform(target: ControlTarget, direction: AdjustmentDirection) {
+    private func perform(target: ActionTarget, direction: AdjustmentDirection) {
         let effectiveDirection = reversesScrollDirection ? direction.reversed : direction
         let signedMultiplier = effectiveDirection == .increase ? 1.0 : -1.0
-        let value: Double?
 
-        switch target {
-        case .brightness:
-            value = brightnessManager.adjust(by: signedMultiplier * brightnessStep)
-        case .volume:
-            value = volumeManager.adjust(by: signedMultiplier * volumeStep)
-        case .keyboardBacklight:
-            value = keyboardBacklightManager.adjust(by: signedMultiplier * keyboardBacklightStep)
-        case .microphoneVolume:
-            value = microphoneVolumeManager.adjust(by: signedMultiplier * microphoneStep)
-        case .previousTrack:
-            guard Date().timeIntervalSince(lastTrackSkipDate) > 0.5 else { return }
-            mediaControlManager.previousTrack()
-            lastTrackSkipDate = Date()
-            value = 0.5
-        case .nextTrack:
-            guard Date().timeIntervalSince(lastTrackSkipDate) > 0.5 else { return }
-            mediaControlManager.nextTrack()
-            lastTrackSkipDate = Date()
-            value = 0.5
-        }
+        let actionValue: ActionValue = target.isContinuous
+            ? .continuous(delta: signedMultiplier)
+            : .discrete
+
+        let result = actionDispatcher.perform(target: target, value: actionValue)
+
+        guard result.didPerform else { return }
 
         if usesHaptics {
             hapticManager.perform(intensity: hapticIntensity)
         }
 
-        if showsHUD, let value {
-            hudManager.show(target: target, value: value, usesDarkBackground: usesDarkHUDBackground)
+        if showsHUD, let hudValue = result.hudValue, let hudTarget = target.hudTarget {
+            hudManager.show(target: hudTarget, value: hudValue, usesDarkBackground: usesDarkHUDBackground)
         }
     }
 

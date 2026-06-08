@@ -2,15 +2,6 @@ import AppKit
 import CoreGraphics
 import Foundation
 
-enum ControlTarget: String {
-    case brightness
-    case volume
-    case keyboardBacklight
-    case microphoneVolume
-    case previousTrack
-    case nextTrack
-}
-
 enum AdjustmentDirection: String {
     case increase
     case decrease
@@ -42,7 +33,7 @@ final class TrackpadEventMonitor {
     }
 
     private let configurationProvider: () -> Configuration
-    private let actionHandler: (ControlTarget, AdjustmentDirection) -> Void
+    private let actionHandler: (ActionTarget, AdjustmentDirection) -> Void
     private let multiTouchManager = MultiTouchSupportManager()
     private var globalMonitor: Any?
     private var localMonitor: Any?
@@ -51,12 +42,12 @@ final class TrackpadEventMonitor {
     private var eventTapHealthTimer: Timer?
     private nonisolated(unsafe) var eventTapCanConsume = false
     private var accumulatedDelta: Double = 0
-    private var activeTarget: ControlTarget?
+    private var activeTarget: ActionTarget?
     private var lastTriggerDate = Date.distantPast
 
     init(
         configurationProvider: @escaping () -> Configuration,
-        actionHandler: @escaping (ControlTarget, AdjustmentDirection) -> Void
+        actionHandler: @escaping (ActionTarget, AdjustmentDirection) -> Void
     ) {
         self.configurationProvider = configurationProvider
         self.actionHandler = actionHandler
@@ -173,7 +164,7 @@ final class TrackpadEventMonitor {
     private func resolveTarget(
         for event: NSEvent,
         configuration: Configuration
-    ) -> ControlTarget? {
+    ) -> ActionTarget? {
         let modifierFlags = effectiveModifierFlags(for: event)
         if configuration.enhancedEdgeDetection {
             if modifierFlags.contains(.option),
@@ -190,7 +181,7 @@ final class TrackpadEventMonitor {
             }
         }
         if modifierFlags.contains(.option) {
-            return .brightness
+            return .screenBrightness
         }
         if modifierFlags.contains(.control) {
             return .keyboardBacklight
@@ -204,7 +195,7 @@ final class TrackpadEventMonitor {
     private func resolveTarget(
         for event: CGEvent,
         configuration: Configuration
-    ) -> ControlTarget? {
+    ) -> ActionTarget? {
         let flags = effectiveModifierFlags(for: event)
         if configuration.enhancedEdgeDetection {
             if flags.contains(.option),
@@ -221,7 +212,7 @@ final class TrackpadEventMonitor {
             }
         }
         if flags.contains(.option) {
-            return .brightness
+            return .screenBrightness
         }
         if flags.contains(.control) {
             return .keyboardBacklight
@@ -271,17 +262,17 @@ final class TrackpadEventMonitor {
         return Double(event.getIntegerValueField(.scrollWheelEventDeltaAxis1))
     }
 
-    private func enhancedEdgeTarget(edgeWidth: Double, modifier: NSEvent.ModifierFlags) -> ControlTarget? {
+    private func enhancedEdgeTarget(edgeWidth: Double, modifier: NSEvent.ModifierFlags) -> ActionTarget? {
         guard let averageX = multiTouchManager.recentAverageX() else { return nil }
         if averageX <= edgeWidth {
-            if modifier == .option { return .brightness }
+            if modifier == .option { return .screenBrightness }
             if modifier == .control { return .keyboardBacklight }
             if modifier == .command { return .previousTrack }
             return nil
         }
         if averageX >= 1 - edgeWidth {
-            if modifier == .option { return .volume }
-            if modifier == .control { return .microphoneVolume }
+            if modifier == .option { return .outputVolume }
+            if modifier == .control { return .microphoneInputVolume }
             if modifier == .command { return .nextTrack }
             return nil
         }

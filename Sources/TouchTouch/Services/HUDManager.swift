@@ -7,7 +7,7 @@ final class HUDManager {
     private var state: HUDState?
     private var hideWorkItem: DispatchWorkItem?
 
-    func show(target: ControlTarget, value: Double, usesDarkBackground: Bool) {
+    func show(target: HUDDisplayTarget, value: Double, usesDarkBackground: Bool) {
         hideWorkItem?.cancel()
 
         let state = state ?? HUDState(target: target, value: value, usesDarkBackground: usesDarkBackground)
@@ -50,7 +50,7 @@ final class HUDManager {
 
 @MainActor
 private final class HUDState: ObservableObject {
-    @Published var target: ControlTarget
+    @Published var target: HUDDisplayTarget
     @Published var value: Double
     @Published var usesDarkBackground: Bool
 
@@ -58,7 +58,7 @@ private final class HUDState: ObservableObject {
         target == .previousTrack || target == .nextTrack
     }
 
-    init(target: ControlTarget, value: Double, usesDarkBackground: Bool) {
+    init(target: HUDDisplayTarget, value: Double, usesDarkBackground: Bool) {
         self.target = target
         self.value = min(max(value, 0), 1)
         self.usesDarkBackground = usesDarkBackground
