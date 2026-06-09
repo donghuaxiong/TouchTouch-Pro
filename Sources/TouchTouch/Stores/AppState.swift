@@ -76,6 +76,19 @@ final class AppState: ObservableObject {
         didSet { defaults.set(reversesScrollDirection, forKey: Keys.reversesScrollDirection) }
     }
 
+    @Published var customGestures: [CustomGestureConfig] {
+        didSet { persistCustomGestures() }
+    }
+
+    @Published var isGestureEnabled: Bool {
+        didSet { defaults.set(isGestureEnabled, forKey: Keys.isGestureEnabled) }
+    }
+
+    /// 双指长按触发的修饰键（control/option/command）
+    @Published var twoFingerLongPressModifier: String {
+        didSet { defaults.set(twoFingerLongPressModifier, forKey: Keys.twoFingerLongPressModifier) }
+    }
+
     @Published var isMeetingMode: Bool = false
 
     private let defaults = UserDefaults.standard
@@ -113,7 +126,8 @@ final class AppState: ObservableObject {
             Keys.usesDarkHUDBackground: false,
             Keys.usesHaptics: true,
             Keys.hapticIntensity: 2.0,
-            Keys.reversesScrollDirection: false
+            Keys.reversesScrollDirection: false,
+            Keys.twoFingerLongPressModifier: "option"  // 默认触发 option 键
         ])
 
         isEnabled = defaults.bool(forKey: Keys.isEnabled)
@@ -130,8 +144,12 @@ final class AppState: ObservableObject {
         usesHaptics = defaults.bool(forKey: Keys.usesHaptics)
         hapticIntensity = defaults.double(forKey: Keys.hapticIntensity)
         reversesScrollDirection = defaults.bool(forKey: Keys.reversesScrollDirection)
+        customGestures = Self.loadCustomGestures()
+        isGestureEnabled = defaults.bool(forKey: Keys.isGestureEnabled)
+        twoFingerLongPressModifier = defaults.string(forKey: Keys.twoFingerLongPressModifier) ?? "option"
 
         refreshMonitoring()
+        setupGestureCallbacks()
     }
 
     var controlStatusDescription: String {
@@ -211,6 +229,68 @@ final class AppState: ObservableObject {
         }
     }
 
+    // MARK: - Custom Gestures
+
+    /// 当前双指长按对应的修饰键 keyCode
+    private var twoFingerModifierKeyCode: CGKeyCode {
+        switch twoFingerLongPressModifier {
+        case "control": return 59  // Control (左)
+        case "command": return 55  // Command (左)
+        default:        return 58  // Option (左)
+        }
+    }
+
+    private func setupGestureCallbacks() {
+        eventMonitor.setGestureCallbacks(
+            onTwoFingerLongPressBegin: { [weak self] in
+                self?.handleTwoFingerLongPressBegin()
+            },
+            onTwoFingerLongPressEnd: { [weak self] in
+                self?.handleTwoFingerLongPressEnd()
+            }
+        )
+    }
+
+    /// 双指长按开始 → 按住修饰键
+    private func handleTwoFingerLongPressBegin() {
+        guard isEnabled && isGestureEnabled else { return }
+        let keyCode = twoFingerModifierKeyCode
+        KeySimulator.holdModifier(keyCode: keyCode)
+        provideGestureFeedback(keyName: twoFingerLongPressModifier.capitalized)
+    }
+
+    /// 双指长按结束 → 释放修饰键
+    private func handleTwoFingerLongPressEnd() {
+        guard isEnabled && isGestureEnabled else { return }
+        KeySimulator.releaseModifier(keyCode: twoFingerModifierKeyCode)
+    }
+
+    /// 手势触发后的 HUD 反馈（内置节流，避免高频刷新）。
+    private func provideGestureFeedback(keyName: String) {
+        if showsHUD {
+            hudManager.show(
+                target: .meetingMode, value: 0.5,
+                usesDarkBackground: usesDarkHUDBackground,
+                title: keyName,
+                systemImage: "hand.tap.fill"
+            )
+        }
+        if usesHaptics {
+            hapticManager.perform(intensity: hapticIntensity)
+        }
+    }
+
+    private func persistCustomGestures() {
+        guard let data = try? JSONEncoder().encode(customGestures) else { return }
+        defaults.set(data, forKey: Keys.customGestures)
+    }
+
+    private static func loadCustomGestures() -> [CustomGestureConfig] {
+        let defaults = UserDefaults.standard
+        guard let data = defaults.data(forKey: Keys.customGestures) else { return [] }
+        return (try? JSONDecoder().decode([CustomGestureConfig].self, from: data)) ?? []
+    }
+
     private func performMeetingAction(target: ActionTarget) {
         guard Date().timeIntervalSince(lastMeetingActionDate) > 0.5 else { return }
         lastMeetingActionDate = Date()
@@ -264,5 +344,8 @@ final class AppState: ObservableObject {
         static let usesHaptics = "usesHaptics"
         static let hapticIntensity = "hapticIntensity"
         static let reversesScrollDirection = "reversesScrollDirection"
+        static let customGestures = "customGestures"
+        static let isGestureEnabled = "isGestureEnabled"
+        static let twoFingerLongPressModifier = "twoFingerLongPressModifier"  // 双指长按触发的修饰键
     }
 }

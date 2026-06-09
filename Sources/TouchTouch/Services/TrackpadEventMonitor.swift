@@ -79,6 +79,15 @@ final class TrackpadEventMonitor {
         }
     }
 
+    /// Configure custom gesture callbacks, forwarded to the underlying MultiTouchSupportManager.
+    func setGestureCallbacks(
+        onTwoFingerLongPressBegin: (() -> Void)?,
+        onTwoFingerLongPressEnd: (() -> Void)?
+    ) {
+        multiTouchManager.onTwoFingerLongPressBegin = onTwoFingerLongPressBegin
+        multiTouchManager.onTwoFingerLongPressEnd = onTwoFingerLongPressEnd
+    }
+
     func start() {
         guard globalMonitor == nil, localMonitor == nil, eventTap == nil else { return }
 

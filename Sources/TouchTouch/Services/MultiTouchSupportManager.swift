@@ -61,6 +61,14 @@ final class MultiTouchSupportManager {
     nonisolated(unsafe) var onHorizontalSwipe: ((Int32, AdjustmentDirection) -> Void)?
     private var lastFingerCount: Int32 = 0
 
+    // ── 双指长按检测（模拟按住修饰键）──
+    nonisolated(unsafe) var onTwoFingerLongPressBegin: (() -> Void)?
+    nonisolated(unsafe) var onTwoFingerLongPressEnd: (() -> Void)?
+    private var touchActive = false
+    private var touchStartTime = Date.distantPast
+    private var modifierHeld = false
+    private let longPressDelay: TimeInterval = 0.3  // 长按延迟时间
+
     func start() {
         guard frameworkHandle == nil else { return }
         let path = "/System/Library/PrivateFrameworks/MultiTouchSupport.framework/MultitouchSupport"
@@ -129,6 +137,8 @@ final class MultiTouchSupportManager {
         previousAverageX = nil
         horizontalAccumulatedX = 0
         lastFingerCount = 0
+        touchActive = false
+        modifierHeld = false
     }
 
     func recentAverageX(maxAge: TimeInterval = 0.30) -> Double? {
@@ -140,22 +150,34 @@ final class MultiTouchSupportManager {
     private func update(averageX: Double, fingerCount: Int32) {
         latestAverageX = averageX
         latestUpdateDate = Date()
+        let now = Date()
 
-        // Detect finger count changes (touch down/up)
-        if fingerCount > 0 && lastFingerCount == 0 {
-            // New touch sequence started
-            horizontalAccumulatedX = 0
-            previousAverageX = averageX
+        // ── 双指长按检测 ─
+        if fingerCount == 2 && !touchActive {
+            touchActive = true
+            touchStartTime = now
+            modifierHeld = false
         }
-        if fingerCount == 0 && lastFingerCount > 0 {
-            // Touch sequence ended
-            horizontalAccumulatedX = 0
-            previousAverageX = nil
+        
+        // 检查是否达到长按阈值
+        if fingerCount == 2 && touchActive && !modifierHeld {
+            let elapsed = now.timeIntervalSince(touchStartTime)
+            if elapsed >= longPressDelay {
+                onTwoFingerLongPressBegin?()
+                modifierHeld = true
+            }
+        }
+        
+        // 手指抬起
+        if fingerCount < 2 && touchActive {
+            if modifierHeld {
+                onTwoFingerLongPressEnd?()
+            }
+            touchActive = false
+            modifierHeld = false
         }
 
-        lastFingerCount = fingerCount
-
-        // Accumulate horizontal movement
+        // ── 水平滑动检测（用于会议模式切换等）──
         guard let prevX = previousAverageX else {
             previousAverageX = averageX
             return
@@ -165,12 +187,28 @@ final class MultiTouchSupportManager {
         horizontalAccumulatedX += deltaX
         previousAverageX = averageX
 
-        // Check for horizontal swipe
         if abs(horizontalAccumulatedX) >= horizontalSwipeThreshold {
             let direction: AdjustmentDirection = horizontalAccumulatedX > 0 ? .increase : .decrease
             onHorizontalSwipe?(fingerCount, direction)
             horizontalAccumulatedX = 0
         }
+    }
+
+    /// 触摸结束（fingerCount 降为 0）
+    private func updateTouchEnd() {
+        if touchActive && modifierHeld {
+            onTwoFingerLongPressEnd?()
+        }
+        touchActive = false
+        modifierHeld = false
+        horizontalAccumulatedX = 0
+        previousAverageX = nil
+    }
+
+    private func trackpadPosition(from x: Double) -> TrackpadPosition {
+        if x <= 0.35 { return .left }
+        if x >= 0.65 { return .right }
+        return .any
     }
 
     private nonisolated static func averageX(fingers: UnsafeMutableRawPointer?, count: Int32) -> Double? {
@@ -189,14 +227,17 @@ final class MultiTouchSupportManager {
 
     private nonisolated static let contactFrameCallback: MTContactFrameCallback = {
         _, fingers, fingerCount, _, _ in
-        guard let averageX = MultiTouchSupportManager.averageX(
-            fingers: fingers,
-            count: fingerCount
-        ) else {
+        if fingerCount == 0 {
+            Task { @MainActor in
+                MultiTouchSupportManager.activeMonitor?.updateTouchEnd()
+            }
+            return 0
+        }
+        guard let avgX = MultiTouchSupportManager.averageX(fingers: fingers, count: fingerCount) else {
             return 0
         }
         Task { @MainActor in
-            MultiTouchSupportManager.activeMonitor?.update(averageX: averageX, fingerCount: fingerCount)
+            MultiTouchSupportManager.activeMonitor?.update(averageX: avgX, fingerCount: fingerCount)
         }
         return 0
     }

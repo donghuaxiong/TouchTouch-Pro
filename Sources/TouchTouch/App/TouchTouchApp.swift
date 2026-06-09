@@ -65,7 +65,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         let window = NSWindow(contentViewController: hostingController)
         window.title = "TouchTouch Pro"
-        window.setContentSize(NSSize(width: 520, height: 420))
+        window.setContentSize(NSSize(width: 580, height: 480))
         window.styleMask = [.titled, .closable, .fullSizeContentView]
         window.titlebarAppearsTransparent = true
         window.titleVisibility = .hidden

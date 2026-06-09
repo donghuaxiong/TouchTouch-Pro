@@ -5,6 +5,7 @@ import SwiftUI
 
 enum SettingsTab: String, CaseIterable, Identifiable {
     case control = "控制方式"
+    case gesture = "手势"
     case meeting = "会议模式"
     case sensitivity = "灵敏度"
     case feedback = "反馈"
@@ -16,6 +17,7 @@ enum SettingsTab: String, CaseIterable, Identifiable {
     var icon: String {
         switch self {
         case .control: return "gearshape.2"
+        case .gesture: return "hand.tap.fill"
         case .meeting: return "video.fill"
         case .sensitivity: return "slider.horizontal.3"
         case .feedback: return "waveform.path"
@@ -53,7 +55,7 @@ struct SettingsView: View {
             }
         }
         .environment(\.colorScheme, appState.usesDarkHUDBackground ? .dark : .light)
-        .frame(width: 520, height: 420)
+        .frame(width: 580, height: 480)
     }
 
     // MARK: - Background
@@ -206,6 +208,7 @@ struct SettingsView: View {
             VStack(alignment: .leading, spacing: 16) {
                 switch selectedTab {
                 case .control:    controlContent
+                case .gesture:    gestureContent
                 case .meeting:    meetingContent
                 case .sensitivity: sensitivityContent
                 case .feedback:   feedbackContent
@@ -616,6 +619,177 @@ struct SettingsView: View {
                     .strokeBorder(Color.white.opacity(0.15), lineWidth: 1)
             )
         }
+    }
+
+    // MARK: - Gesture Tab
+
+    @State private var showSavedToast = false
+
+    private var gestureContent: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            // Enable toggle
+            HStack {
+                sectionHeader(title: "自定义手势", subtitle: "通过触控板轻点或长按触发按键")
+                Spacer()
+                Toggle("", isOn: $appState.isGestureEnabled)
+                    .toggleStyle(.switch)
+                    .labelsHidden()
+                    .scaleEffect(0.8)
+            }
+
+            if !appState.isGestureEnabled {
+                gestureDisabledHint
+            } else {
+                // ── 双指长按修饰键配置 ──
+                modifierKeySelector
+
+                Divider().opacity(0.3)
+
+                if appState.customGestures.isEmpty {
+                    emptyGestureHint
+                } else {
+                    ForEach(Array(appState.customGestures.indices), id: \.self) { index in
+                        GestureConfigRow(
+                            config: $appState.customGestures[index],
+                            onDelete: { appState.customGestures.remove(at: index) }
+                        )
+                    }
+                }
+
+                addGestureButton
+            }
+
+            // Save toast overlay
+            if showSavedToast {
+                savedToast
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
+            }
+        }
+        .animation(.easeInOut(duration: 0.25), value: showSavedToast)
+        .onChange(of: appState.customGestures.count) { _ in
+            showSavedToast = true
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+                showSavedToast = false
+            }
+        }
+    }
+
+    /// 双指长按修饰键选择器
+    private var modifierKeySelector: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Label("双指长按触发", systemImage: "hand.point.up.left.fill")
+                .font(.system(size: 12, weight: .bold))
+                .foregroundStyle(.secondary)
+
+            HStack(spacing: 8) {
+                modifierKeyButton(key: "control", symbol: "", color: .indigo)
+                modifierKeyButton(key: "option", symbol: "", color: .orange)
+                modifierKeyButton(key: "command", symbol: "", color: .blue)
+            }
+        }
+        .padding(12)
+        .background(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .fill(Color.white.opacity(0.5))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .strokeBorder(Color.white.opacity(0.2), lineWidth: 1)
+        )
+    }
+
+    private func modifierKeyButton(key: String, symbol: String, color: Color) -> some View {
+        let isSelected = appState.twoFingerLongPressModifier == key
+        return Button {
+            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                appState.twoFingerLongPressModifier = key
+            }
+        } label: {
+            HStack(spacing: 6) {
+                Text(symbol)
+                    .font(.system(size: 16, weight: .bold))
+                Text(key.capitalized)
+                    .font(.system(size: 12, weight: .medium))
+            }
+            .foregroundStyle(isSelected ? .white : .primary)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 8)
+            .background(
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .fill(isSelected ? color : color.opacity(0.10))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .strokeBorder(isSelected ? color : color.opacity(0.3), lineWidth: isSelected ? 2 : 1)
+            )
+        }
+        .buttonStyle(.plain)
+    }
+
+    private var gestureDisabledHint: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "hand.raised.slash.fill")
+                .font(.system(size: 18))
+                .foregroundStyle(.secondary.opacity(0.4))
+            Text("手势功能已关闭，请开启上方开关")
+                .font(.system(size: 13))
+                .foregroundStyle(.secondary)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 24)
+    }
+
+    private var savedToast: some View {
+        HStack(spacing: 4) {
+            Image(systemName: "checkmark.circle.fill")
+                .font(.system(size: 12, weight: .semibold))
+            Text("已保存")
+                .font(.system(size: 12, weight: .semibold))
+        }
+        .foregroundStyle(Color.green)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 5)
+        .background(
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .fill(Color.green.opacity(0.12))
+        )
+    }
+
+    private var emptyGestureHint: some View {
+        VStack(spacing: 6) {
+            Image(systemName: "hand.point.up.left.fill")
+                .font(.system(size: 28))
+                .foregroundStyle(.secondary.opacity(0.4))
+            Text("暂无手势")
+                .font(.system(size: 13, weight: .medium))
+                .foregroundStyle(.secondary)
+            Text("点击下方按钮添加自定义手势")
+                .font(.system(size: 11))
+                .foregroundStyle(.secondary.opacity(0.7))
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 24)
+    }
+
+    private var addGestureButton: some View {
+        Button {
+            appState.customGestures.append(CustomGestureConfig())
+        } label: {
+            HStack(spacing: 6) {
+                Image(systemName: "plus.circle.fill")
+                    .font(.system(size: 14, weight: .semibold))
+                Text("添加手势")
+                    .font(.system(size: 13, weight: .semibold))
+            }
+            .foregroundStyle(Color.accentColor)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 10)
+            .background(
+                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    .fill(Color.accentColor.opacity(0.08))
+            )
+        }
+        .buttonStyle(.plain)
     }
 
     // MARK: - Section Header
@@ -1050,5 +1224,212 @@ private struct AppRow: View {
             RoundedRectangle(cornerRadius: 8, style: .continuous)
                 .fill(Color.white.opacity(0.3))
         )
+    }
+}
+
+// MARK: - Gesture Config Row
+
+private struct GestureConfigRow: View {
+    @Binding var config: CustomGestureConfig
+    let onDelete: () -> Void
+
+    @State private var isRecording = false
+    @State private var keyMonitor: Any?
+
+    private let fingerOptions = [1, 2, 3]
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            // ── Header: summary + delete ──
+            HStack {
+                Image(systemName: config.gestureType == .tap ? "hand.tap.fill" : "hand.point.up.left.fill")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(Color.accentColor)
+                    .frame(width: 24, height: 24)
+                    .background(Color.accentColor.opacity(0.10), in: RoundedRectangle(cornerRadius: 6, style: .continuous))
+
+                Text(summaryText)
+                    .font(.system(size: 13, weight: .medium))
+
+                Spacer()
+
+                Button(action: onDelete) {
+                    Image(systemName: "trash")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(.red)
+                        .frame(width: 24, height: 24)
+                        .background(Color.red.opacity(0.08), in: RoundedRectangle(cornerRadius: 6, style: .continuous))
+                }
+                .buttonStyle(.plain)
+            }
+
+            // ── Row 1: 手指 + 方式 ──
+            HStack(alignment: .firstTextBaseline, spacing: 20) {
+                labeledField(label: "手指") {
+                    Picker("", selection: $config.fingerCount) {
+                        ForEach(fingerOptions, id: \.self) { n in
+                            Text("\(n) 指").tag(n)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+                    .frame(width: 110)
+                }
+
+                labeledField(label: "方式") {
+                    Picker("", selection: $config.gestureType) {
+                        ForEach(GestureType.allCases) { t in
+                            Text(t.rawValue).tag(t)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+                    .frame(width: 80)
+                }
+
+                labeledField(label: "位置") {
+                    Picker("", selection: $config.position) {
+                        ForEach(TrackpadPosition.allCases) { p in
+                            Text(p.rawValue).tag(p)
+                        }
+                    }
+                    .pickerStyle(.menu)
+                    .frame(width: 90)
+                }
+            }
+
+            // ── Row 2: 目标按键录制 ──
+            labeledField(label: "目标按键") {
+                HStack(spacing: 6) {
+                    if isRecording {
+                        HStack(spacing: 5) {
+                            Circle()
+                                .fill(Color.red)
+                                .frame(width: 7, height: 7)
+                                .scaleEffect(isRecording ? 1.3 : 1.0)
+                                .animation(.easeInOut(duration: 0.6).repeatForever(autoreverses: true), value: isRecording)
+                            Text("按下按键...")
+                                .font(.system(size: 12, weight: .medium))
+                                .foregroundStyle(Color.red)
+                        }
+                    } else {
+                        HStack(spacing: 4) {
+                            Image(systemName: "keyboard.fill")
+                                .font(.system(size: 11))
+                                .foregroundStyle(.secondary)
+                            Text(config.keyName)
+                                .font(.system(size: 13, weight: .semibold).monospaced())
+                                .foregroundStyle(.primary)
+                        }
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 5)
+                        .background(
+                            RoundedRectangle(cornerRadius: 6, style: .continuous)
+                                .fill(Color.secondary.opacity(0.08))
+                        )
+                    }
+
+                    Button {
+                        toggleRecording()
+                    } label: {
+                        Text(isRecording ? "取消" : "录制")
+                            .font(.system(size: 11, weight: .semibold))
+                            .foregroundStyle(isRecording ? .red : Color.accentColor)
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 4)
+                            .background(
+                                RoundedRectangle(cornerRadius: 5, style: .continuous)
+                                    .fill((isRecording ? Color.red : Color.accentColor).opacity(0.10))
+                            )
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+
+            // ── Row 3: 长按时长（仅长按模式） ──
+            if config.gestureType == .longPress {
+                labeledField(label: "触发时长") {
+                    HStack(spacing: 8) {
+                        ForEach([0.5, 1.0, 1.5, 2.0], id: \.self) { duration in
+                            Button {
+                                config.longPressDuration = duration
+                            } label: {
+                                Text(formatDuration(duration))
+                                    .font(.system(size: 12, weight: config.longPressDuration == duration ? .bold : .regular))
+                                    .foregroundStyle(config.longPressDuration == duration ? .white : .primary)
+                                    .padding(.horizontal, 12)
+                                    .padding(.vertical, 5)
+                                    .background(
+                                        config.longPressDuration == duration
+                                            ? Color.accentColor
+                                            : Color.secondary.opacity(0.08),
+                                        in: RoundedRectangle(cornerRadius: 6, style: .continuous)
+                                    )
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                }
+            }
+        }
+        .padding(12)
+        .background(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .fill(Color.white.opacity(0.5))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .strokeBorder(Color.white.opacity(0.2), lineWidth: 1)
+        )
+        .onDisappear { stopRecording() }
+    }
+
+    // MARK: - Helpers
+
+    private func labeledField<Content: View>(label: String, @ViewBuilder content: () -> Content) -> some View {
+        VStack(alignment: .leading, spacing: 3) {
+            Text(label)
+                .font(.system(size: 10))
+                .foregroundStyle(.secondary)
+            content()
+        }
+    }
+
+    private var summaryText: String {
+        "\(config.fingerCount)指 \(config.gestureType.rawValue) · \(config.position.rawValue) → \(config.keyName)"
+    }
+
+    private func formatDuration(_ d: TimeInterval) -> String {
+        if d == 2.0 { return "2s" }
+        if d == 1.5 { return "1.5s" }
+        if d == 1.0 { return "1s" }
+        return "0.5s"
+    }
+
+    // MARK: - Key Recording
+
+    private func toggleRecording() {
+        if isRecording {
+            stopRecording()
+        } else {
+            startRecording()
+        }
+    }
+
+    private func startRecording() {
+        isRecording = true
+        keyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
+            if let name = KeySimulator.keyName(for: event.keyCode) {
+                config.keyName = name
+            }
+            stopRecording()
+            return nil
+        }
+    }
+
+    private func stopRecording() {
+        isRecording = false
+        if let monitor = keyMonitor {
+            NSEvent.removeMonitor(monitor)
+        }
+        keyMonitor = nil
     }
 }
