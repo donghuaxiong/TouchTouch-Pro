@@ -194,13 +194,7 @@ final class TrackpadEventMonitor {
     ) -> ActionTarget? {
         let modifierFlags = effectiveModifierFlags(for: event)
 
-        // Meeting mode: check edge targets first (no modifier required)
-        if meetingModeProvider(), configuration.enhancedEdgeDetection {
-            if let target = meetingEdgeTarget(edgeWidth: configuration.edgeWidth) {
-                return target
-            }
-        }
-
+        // Modifier keys take priority over meeting mode
         if configuration.enhancedEdgeDetection {
             if modifierFlags.contains(.option),
                let target = enhancedEdgeTarget(edgeWidth: configuration.edgeWidth, modifier: .option) {
@@ -224,6 +218,14 @@ final class TrackpadEventMonitor {
         if modifierFlags.contains(.command) {
             return .previousTrack
         }
+
+        // Meeting mode: check edge targets (no modifier required)
+        if meetingModeProvider(), configuration.enhancedEdgeDetection {
+            if let target = meetingEdgeTarget(edgeWidth: configuration.edgeWidth) {
+                return target
+            }
+        }
+
         return nil
     }
 
@@ -233,13 +235,7 @@ final class TrackpadEventMonitor {
     ) -> ActionTarget? {
         let flags = effectiveModifierFlags(for: event)
 
-        // Meeting mode: check edge targets first (no modifier required)
-        if meetingModeProvider(), configuration.enhancedEdgeDetection {
-            if let target = meetingEdgeTarget(edgeWidth: configuration.edgeWidth) {
-                return target
-            }
-        }
-
+        // Modifier keys take priority over meeting mode
         if configuration.enhancedEdgeDetection {
             if flags.contains(.option),
                let target = enhancedEdgeTarget(edgeWidth: configuration.edgeWidth, modifier: .option) {
@@ -263,6 +259,14 @@ final class TrackpadEventMonitor {
         if flags.contains(.command) {
             return .previousTrack
         }
+
+        // Meeting mode: check edge targets (no modifier required)
+        if meetingModeProvider(), configuration.enhancedEdgeDetection {
+            if let target = meetingEdgeTarget(edgeWidth: configuration.edgeWidth) {
+                return target
+            }
+        }
+
         return nil
     }
 
