@@ -54,6 +54,13 @@ final class MultiTouchSupportManager {
     private var latestAverageX: Double?
     private var latestUpdateDate = Date.distantPast
 
+    // Horizontal swipe detection
+    private var previousAverageX: Double?
+    private var horizontalAccumulatedX: Double = 0
+    private let horizontalSwipeThreshold: Double = 0.25
+    nonisolated(unsafe) var onHorizontalSwipe: ((Int32, AdjustmentDirection) -> Void)?
+    private var lastFingerCount: Int32 = 0
+
     func start() {
         guard frameworkHandle == nil else { return }
         let path = "/System/Library/PrivateFrameworks/MultiTouchSupport.framework/MultitouchSupport"
@@ -119,6 +126,9 @@ final class MultiTouchSupportManager {
         Self.activeMonitor = nil
         latestAverageX = nil
         latestUpdateDate = .distantPast
+        previousAverageX = nil
+        horizontalAccumulatedX = 0
+        lastFingerCount = 0
     }
 
     func recentAverageX(maxAge: TimeInterval = 0.30) -> Double? {
@@ -127,9 +137,40 @@ final class MultiTouchSupportManager {
         return latestAverageX
     }
 
-    private func update(averageX: Double) {
+    private func update(averageX: Double, fingerCount: Int32) {
         latestAverageX = averageX
         latestUpdateDate = Date()
+
+        // Detect finger count changes (touch down/up)
+        if fingerCount > 0 && lastFingerCount == 0 {
+            // New touch sequence started
+            horizontalAccumulatedX = 0
+            previousAverageX = averageX
+        }
+        if fingerCount == 0 && lastFingerCount > 0 {
+            // Touch sequence ended
+            horizontalAccumulatedX = 0
+            previousAverageX = nil
+        }
+
+        lastFingerCount = fingerCount
+
+        // Accumulate horizontal movement
+        guard let prevX = previousAverageX else {
+            previousAverageX = averageX
+            return
+        }
+
+        let deltaX = averageX - prevX
+        horizontalAccumulatedX += deltaX
+        previousAverageX = averageX
+
+        // Check for horizontal swipe
+        if abs(horizontalAccumulatedX) >= horizontalSwipeThreshold {
+            let direction: AdjustmentDirection = horizontalAccumulatedX > 0 ? .increase : .decrease
+            onHorizontalSwipe?(fingerCount, direction)
+            horizontalAccumulatedX = 0
+        }
     }
 
     private nonisolated static func averageX(fingers: UnsafeMutableRawPointer?, count: Int32) -> Double? {
@@ -155,7 +196,7 @@ final class MultiTouchSupportManager {
             return 0
         }
         Task { @MainActor in
-            MultiTouchSupportManager.activeMonitor?.update(averageX: averageX)
+            MultiTouchSupportManager.activeMonitor?.update(averageX: averageX, fingerCount: fingerCount)
         }
         return 0
     }

@@ -20,6 +20,9 @@ enum ActionTarget: String, Codable, CaseIterable, Identifiable {
     case browserPreviousTab
     case runShortcut
     case sendKeyboardShortcut
+    // Meeting mode targets
+    case meetingMuteToggle
+    case meetingCameraToggle
 
     var id: String { rawValue }
 
@@ -62,6 +65,9 @@ enum HUDDisplayTarget: String {
     case microphoneVolume
     case previousTrack
     case nextTrack
+    case meetingMode
+    case meetingMute
+    case meetingCamera
 }
 
 extension ActionTarget {

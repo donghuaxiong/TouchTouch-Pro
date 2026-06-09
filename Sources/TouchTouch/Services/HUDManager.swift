@@ -8,12 +8,27 @@ final class HUDManager {
     private var hideWorkItem: DispatchWorkItem?
 
     func show(target: HUDDisplayTarget, value: Double, usesDarkBackground: Bool) {
+        showWithCustom(target: target, value: value, usesDarkBackground: usesDarkBackground, title: nil, systemImage: nil)
+    }
+
+    func show(target: HUDDisplayTarget, value: Double, usesDarkBackground: Bool, title: String, systemImage: String) {
+        showWithCustom(target: target, value: value, usesDarkBackground: usesDarkBackground, title: title, systemImage: systemImage)
+    }
+
+    private func showWithCustom(target: HUDDisplayTarget, value: Double, usesDarkBackground: Bool, title: String?, systemImage: String?) {
         hideWorkItem?.cancel()
 
         let state = state ?? HUDState(target: target, value: value, usesDarkBackground: usesDarkBackground)
         let panel = panel ?? makePanel(state: state)
 
         state.target = target // instant switch, no cross-fade
+        if let title = title, let systemImage = systemImage {
+            state.customTitle = title
+            state.customImage = systemImage
+        } else {
+            state.customTitle = nil
+            state.customImage = nil
+        }
         withAnimation(.interactiveSpring(response: 0.22, dampingFraction: 0.88, blendDuration: 0.08)) {
             state.value = min(max(value, 0), 1)
             state.usesDarkBackground = usesDarkBackground
@@ -53,6 +68,8 @@ private final class HUDState: ObservableObject {
     @Published var target: HUDDisplayTarget
     @Published var value: Double
     @Published var usesDarkBackground: Bool
+    @Published var customTitle: String?
+    @Published var customImage: String?
 
     var isTrackSkip: Bool {
         target == .previousTrack || target == .nextTrack
@@ -102,6 +119,8 @@ private struct HUDView: View {
                         TrackSkipHUDIcon(direction: .decrease, color: iconColor)
                     case .nextTrack:
                         TrackSkipHUDIcon(direction: .increase, color: iconColor)
+                    case .meetingMode, .meetingMute, .meetingCamera:
+                        MeetingHUDIcon(target: state.target, color: iconColor, customImage: state.customImage)
                     }
                 }
                 .frame(width: 82, height: 76)
@@ -460,5 +479,37 @@ private struct TrackSkipHUDIcon: View {
                 .foregroundStyle(color)
         }
         .animation(.interactiveSpring(response: 0.2, dampingFraction: 0.9), value: direction)
+    }
+}
+
+// MARK: - Meeting HUD Icon
+
+private struct MeetingHUDIcon: View {
+    let target: HUDDisplayTarget
+    let color: Color
+    let customImage: String?
+
+    private var imageName: String {
+        if let customImage = customImage {
+            return customImage
+        }
+        switch target {
+        case .meetingMode: return "video.fill"
+        case .meetingMute: return "mic.fill"
+        case .meetingCamera: return "video.fill"
+        default: return "video.fill"
+        }
+    }
+
+    var body: some View {
+        ZStack {
+            Circle()
+                .fill(color.opacity(0.12))
+                .frame(width: 56, height: 56)
+
+            Image(systemName: imageName)
+                .font(.system(size: 28, weight: .medium))
+                .foregroundStyle(color)
+        }
     }
 }

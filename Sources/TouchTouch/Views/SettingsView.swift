@@ -5,6 +5,7 @@ import SwiftUI
 
 enum SettingsTab: String, CaseIterable, Identifiable {
     case control = "控制方式"
+    case meeting = "会议模式"
     case sensitivity = "灵敏度"
     case feedback = "反馈"
     case interface = "界面"
@@ -15,6 +16,7 @@ enum SettingsTab: String, CaseIterable, Identifiable {
     var icon: String {
         switch self {
         case .control: return "gearshape.2"
+        case .meeting: return "video.fill"
         case .sensitivity: return "slider.horizontal.3"
         case .feedback: return "waveform.path"
         case .interface: return "macwindow"
@@ -204,6 +206,7 @@ struct SettingsView: View {
             VStack(alignment: .leading, spacing: 16) {
                 switch selectedTab {
                 case .control:    controlContent
+                case .meeting:    meetingContent
                 case .sensitivity: sensitivityContent
                 case .feedback:   feedbackContent
                 case .interface:  interfaceContent
@@ -308,6 +311,110 @@ struct SettingsView: View {
                 subtitle: "切换上下滑动对应的加减方向",
                 systemImage: "arrow.up.arrow.down",
                 isOn: $appState.reversesScrollDirection
+            )
+        }
+    }
+
+    // MARK: - Meeting Tab
+
+    private var meetingContent: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            sectionHeader(title: "会议模式", subtitle: "三指滑动进入，边缘手势控制静音和摄像头")
+
+            // Meeting mode status
+            HStack(spacing: 10) {
+                Image(systemName: appState.isMeetingMode ? "video.fill" : "video.slash.fill")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(appState.isMeetingMode ? Color.green : Color.secondary)
+                    .frame(width: 32, height: 32)
+                    .background(
+                        (appState.isMeetingMode ? Color.green.opacity(0.12) : Color.secondary.opacity(0.08)),
+                        in: RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    )
+
+                VStack(alignment: .leading, spacing: 1) {
+                    Text("会议模式状态")
+                        .font(.system(size: 13, weight: .semibold))
+                    Text(appState.isMeetingMode ? "已激活" : "未激活")
+                        .font(.system(size: 11))
+                        .foregroundStyle(appState.isMeetingMode ? Color.green : Color.secondary)
+                }
+
+                Spacer()
+
+                Button {
+                    appState.toggleMeetingMode()
+                } label: {
+                    Text(appState.isMeetingMode ? "退出" : "进入")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 6)
+                        .background(
+                            appState.isMeetingMode ? Color.red : Color.accentColor,
+                            in: RoundedRectangle(cornerRadius: 8, style: .continuous)
+                        )
+                }
+                .buttonStyle(.plain)
+            }
+            .padding(12)
+            .background(
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .fill(appState.isMeetingMode ? Color.green.opacity(0.06) : Color.white.opacity(0.5))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .strokeBorder(appState.isMeetingMode ? Color.green.opacity(0.2) : Color.white.opacity(0.2), lineWidth: 1)
+            )
+
+            // Gesture guide
+            VStack(alignment: .leading, spacing: 10) {
+                Label("手势说明", systemImage: "hand.draw.fill")
+                    .font(.system(size: 12, weight: .bold))
+                    .foregroundStyle(.secondary)
+
+                HStack(spacing: 10) {
+                    MeetingGestureTile(
+                        icon: "hand.point.right.fill",
+                        title: "三指水平滑动",
+                        description: "进入/退出会议模式",
+                        tint: .purple
+                    )
+                }
+
+                HStack(spacing: 10) {
+                    MeetingGestureTile(
+                        icon: "mic.slash.fill",
+                        title: "左边缘滑入",
+                        description: "静音切换",
+                        tint: .orange
+                    )
+                    MeetingGestureTile(
+                        icon: "video.slash.fill",
+                        title: "右边缘滑入",
+                        description: "摄像头切换",
+                        tint: .blue
+                    )
+                }
+            }
+
+            // Supported apps
+            VStack(alignment: .leading, spacing: 8) {
+                Label("支持的应用", systemImage: "app.badge.checkmark.fill")
+                    .font(.system(size: 12, weight: .bold))
+                    .foregroundStyle(.secondary)
+
+                VStack(spacing: 6) {
+                    AppRow(name: "腾讯会议", icon: "t.square.fill", tint: .blue)
+                    AppRow(name: "钉钉", icon: "d.square.fill", tint: .indigo)
+                    AppRow(name: "飞书 / Lark", icon: "f.square.fill", tint: .purple)
+                    AppRow(name: "企业微信", icon: "w.square.fill", tint: .green)
+                }
+            }
+            .padding(12)
+            .background(
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .fill(Color.white.opacity(0.5))
             )
         }
     }
@@ -874,5 +981,74 @@ private struct MoonVectorIcon: Shape {
         )
         p.closeSubpath()
         return p
+    }
+}
+
+// MARK: - Meeting Gesture Tile
+
+private struct MeetingGestureTile: View {
+    let icon: String
+    let title: String
+    let description: String
+    let tint: Color
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack {
+                Image(systemName: icon)
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(tint)
+                Spacer()
+            }
+
+            Text(title)
+                .font(.system(size: 12, weight: .semibold))
+
+            Text(description)
+                .font(.system(size: 11))
+                .foregroundStyle(.secondary)
+        }
+        .padding(12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .fill(tint.opacity(0.08))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .strokeBorder(tint.opacity(0.14), lineWidth: 1)
+        )
+    }
+}
+
+// MARK: - App Row
+
+private struct AppRow: View {
+    let name: String
+    let icon: String
+    let tint: Color
+
+    var body: some View {
+        HStack(spacing: 10) {
+            Image(systemName: icon)
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundStyle(tint)
+                .frame(width: 24, height: 24)
+
+            Text(name)
+                .font(.system(size: 13, weight: .medium))
+
+            Spacer()
+
+            Image(systemName: "checkmark.circle.fill")
+                .font(.system(size: 12))
+                .foregroundStyle(Color.green)
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 6)
+        .background(
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .fill(Color.white.opacity(0.3))
+        )
     }
 }

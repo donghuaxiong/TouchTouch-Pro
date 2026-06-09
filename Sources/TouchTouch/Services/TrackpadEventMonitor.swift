@@ -34,6 +34,8 @@ final class TrackpadEventMonitor {
 
     private let configurationProvider: () -> Configuration
     private let actionHandler: (ActionTarget, AdjustmentDirection) -> Void
+    private nonisolated(unsafe) let meetingModeProvider: () -> Bool
+    private nonisolated(unsafe) let meetingModeChangeHandler: () -> Void
     private let multiTouchManager = MultiTouchSupportManager()
     private var globalMonitor: Any?
     private var localMonitor: Any?
@@ -47,10 +49,34 @@ final class TrackpadEventMonitor {
 
     init(
         configurationProvider: @escaping () -> Configuration,
-        actionHandler: @escaping (ActionTarget, AdjustmentDirection) -> Void
+        actionHandler: @escaping (ActionTarget, AdjustmentDirection) -> Void,
+        meetingModeProvider: @escaping () -> Bool,
+        meetingModeChangeHandler: @escaping () -> Void
     ) {
         self.configurationProvider = configurationProvider
         self.actionHandler = actionHandler
+        self.meetingModeProvider = meetingModeProvider
+        self.meetingModeChangeHandler = meetingModeChangeHandler
+        setupSwipeHandler()
+    }
+
+    private func setupSwipeHandler() {
+        multiTouchManager.onHorizontalSwipe = { [weak self] fingerCount, direction in
+            guard let self else { return }
+            // 3-finger horizontal swipe toggles meeting mode
+            guard fingerCount == 3 else { return }
+            _ = direction
+
+            let isCurrentlyMeeting = self.meetingModeProvider()
+            let isAppFrontmost = MeetingActionManager.isSupportedAppFrontmost
+
+            if !isCurrentlyMeeting && !isAppFrontmost {
+                return
+            }
+
+            self.meetingModeChangeHandler()
+            self.resetAccumulator()
+        }
     }
 
     func start() {
@@ -125,7 +151,8 @@ final class TrackpadEventMonitor {
     @discardableResult
     private func handle(_ event: CGEvent) -> Bool {
         let configuration = configurationProvider()
-        guard currentModifierFlagsStillContainTrigger() else {
+        let isMeeting = meetingModeProvider()
+        guard isMeeting || currentModifierFlagsStillContainTrigger() else {
             resetAccumulator()
             return false
         }
@@ -166,6 +193,14 @@ final class TrackpadEventMonitor {
         configuration: Configuration
     ) -> ActionTarget? {
         let modifierFlags = effectiveModifierFlags(for: event)
+
+        // Meeting mode: check edge targets first (no modifier required)
+        if meetingModeProvider(), configuration.enhancedEdgeDetection {
+            if let target = meetingEdgeTarget(edgeWidth: configuration.edgeWidth) {
+                return target
+            }
+        }
+
         if configuration.enhancedEdgeDetection {
             if modifierFlags.contains(.option),
                let target = enhancedEdgeTarget(edgeWidth: configuration.edgeWidth, modifier: .option) {
@@ -197,6 +232,14 @@ final class TrackpadEventMonitor {
         configuration: Configuration
     ) -> ActionTarget? {
         let flags = effectiveModifierFlags(for: event)
+
+        // Meeting mode: check edge targets first (no modifier required)
+        if meetingModeProvider(), configuration.enhancedEdgeDetection {
+            if let target = meetingEdgeTarget(edgeWidth: configuration.edgeWidth) {
+                return target
+            }
+        }
+
         if configuration.enhancedEdgeDetection {
             if flags.contains(.option),
                let target = enhancedEdgeTarget(edgeWidth: configuration.edgeWidth, modifier: .option) {
@@ -275,6 +318,22 @@ final class TrackpadEventMonitor {
             if modifier == .control { return .microphoneInputVolume }
             if modifier == .command { return .nextTrack }
             return nil
+        }
+        return nil
+    }
+
+    private func meetingEdgeTarget(edgeWidth: Double) -> ActionTarget? {
+        guard MeetingActionManager.isSupportedAppFrontmost else {
+            return nil
+        }
+        guard let averageX = multiTouchManager.recentAverageX() else {
+            return nil
+        }
+        if averageX <= edgeWidth {
+            return .meetingMuteToggle
+        }
+        if averageX >= 1 - edgeWidth {
+            return .meetingCameraToggle
         }
         return nil
     }

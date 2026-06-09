@@ -76,16 +76,25 @@ final class AppState: ObservableObject {
         didSet { defaults.set(reversesScrollDirection, forKey: Keys.reversesScrollDirection) }
     }
 
+    @Published var isMeetingMode: Bool = false
+
     private let defaults = UserDefaults.standard
     private let actionDispatcher = ActionDispatcher()
     private let hudManager = HUDManager()
     private let hapticManager = HapticManager()
+    private var lastMeetingActionDate = Date.distantPast
     private lazy var eventMonitor = TrackpadEventMonitor(
         configurationProvider: { [weak self] in
             self?.monitorConfiguration ?? .default
         },
         actionHandler: { [weak self] target, direction in
             self?.perform(target: target, direction: direction)
+        },
+        meetingModeProvider: { [weak self] in
+            self?.isMeetingMode ?? false
+        },
+        meetingModeChangeHandler: { [weak self] in
+            self?.toggleMeetingMode()
         }
     )
 
@@ -150,6 +159,22 @@ final class AppState: ObservableObject {
         }
     }
 
+    func toggleMeetingMode() {
+        isMeetingMode.toggle()
+        let title = isMeetingMode ? "进入会议模式" : "退出会议模式"
+        let image = isMeetingMode ? "video.fill" : "video.slash.fill"
+        hudManager.show(
+            target: .meetingMode,
+            value: isMeetingMode ? 1.0 : 0.0,
+            usesDarkBackground: usesDarkHUDBackground,
+            title: title,
+            systemImage: image
+        )
+        if usesHaptics {
+            hapticManager.perform(intensity: hapticIntensity * 1.5)
+        }
+    }
+
     private var monitorConfiguration: TrackpadEventMonitor.Configuration {
         .init(
             enhancedEdgeDetection: enhancedEdgeDetection,
@@ -160,6 +185,12 @@ final class AppState: ObservableObject {
     }
 
     private func perform(target: ActionTarget, direction: AdjustmentDirection) {
+        // Handle meeting mode actions separately
+        if target == .meetingMuteToggle || target == .meetingCameraToggle {
+            performMeetingAction(target: target)
+            return
+        }
+
         let effectiveDirection = reversesScrollDirection ? direction.reversed : direction
         let signedMultiplier = effectiveDirection == .increase ? 1.0 : -1.0
 
@@ -177,6 +208,44 @@ final class AppState: ObservableObject {
 
         if showsHUD, let hudValue = result.hudValue, let hudTarget = target.hudTarget {
             hudManager.show(target: hudTarget, value: hudValue, usesDarkBackground: usesDarkHUDBackground)
+        }
+    }
+
+    private func performMeetingAction(target: ActionTarget) {
+        guard Date().timeIntervalSince(lastMeetingActionDate) > 0.5 else { return }
+        lastMeetingActionDate = Date()
+
+        let title: String
+        let image: String
+        let hudTarget: HUDDisplayTarget
+
+        switch target {
+        case .meetingMuteToggle:
+            MeetingActionManager.toggleMute()
+            title = "静音切换"
+            image = "mic.fill"
+            hudTarget = .meetingMute
+        case .meetingCameraToggle:
+            MeetingActionManager.toggleCamera()
+            title = "摄像头切换"
+            image = "video.fill"
+            hudTarget = .meetingCamera
+        default:
+            return
+        }
+
+        if usesHaptics {
+            hapticManager.perform(intensity: hapticIntensity)
+        }
+
+        if showsHUD {
+            hudManager.show(
+                target: hudTarget,
+                value: 0.5,
+                usesDarkBackground: usesDarkHUDBackground,
+                title: title,
+                systemImage: image
+            )
         }
     }
 
