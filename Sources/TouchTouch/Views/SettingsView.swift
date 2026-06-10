@@ -640,8 +640,21 @@ struct SettingsView: View {
             if !appState.isGestureEnabled {
                 gestureDisabledHint
             } else {
-                // ── 双指长按修饰键配置 ──
-                modifierKeySelector
+                // ── 多指长按修饰键配置 ──
+                HStack {
+                    Label("长按触发修饰键", systemImage: "hand.point.up.left.fill")
+                        .font(.system(size: 12, weight: .bold))
+                        .foregroundStyle(.secondary)
+                    Spacer()
+                    Toggle("", isOn: $appState.isModifierKeyEnabled)
+                        .toggleStyle(.switch)
+                        .labelsHidden()
+                        .scaleEffect(0.8)
+                }
+
+                if appState.isModifierKeyEnabled {
+                    modifierKeySelector
+                }
 
                 Divider().opacity(0.3)
 
@@ -679,8 +692,8 @@ struct SettingsView: View {
         VStack(alignment: .leading, spacing: 12) {
             // ── 手指数选择 ──
             VStack(alignment: .leading, spacing: 6) {
-                Label("长按触发修饰键", systemImage: "hand.point.up.left.fill")
-                    .font(.system(size: 12, weight: .bold))
+                Text("手指数")
+                    .font(.system(size: 11, weight: .medium))
                     .foregroundStyle(.secondary)
 
                 HStack(spacing: 6) {

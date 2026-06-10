@@ -105,6 +105,13 @@ final class AppState: ObservableObject {
         }
     }
 
+    /// 是否启用多指长按修饰键功能
+    @Published var isModifierKeyEnabled: Bool {
+        didSet {
+            defaults.set(isModifierKeyEnabled, forKey: Keys.isModifierKeyEnabled)
+        }
+    }
+
     @Published var isMeetingMode: Bool = false
 
     private let defaults = UserDefaults.standard
@@ -145,7 +152,8 @@ final class AppState: ObservableObject {
             Keys.reversesScrollDirection: false,
             Keys.twoFingerLongPressModifier: "option",  // 默认触发 option 键
             Keys.modifierFingerCount: 2,  // 默认双指触发
-            Keys.requirePress: false  // 默认轻触触发
+            Keys.requirePress: false,  // 默认轻触触发
+            Keys.isModifierKeyEnabled: true  // 默认启用修饰键
         ])
 
         isEnabled = defaults.bool(forKey: Keys.isEnabled)
@@ -166,6 +174,7 @@ final class AppState: ObservableObject {
         isGestureEnabled = defaults.bool(forKey: Keys.isGestureEnabled)
         twoFingerLongPressModifier = defaults.string(forKey: Keys.twoFingerLongPressModifier) ?? "option"
         requirePress = defaults.bool(forKey: Keys.requirePress)
+        isModifierKeyEnabled = defaults.bool(forKey: Keys.isModifierKeyEnabled)
         modifierFingerCount = defaults.integer(forKey: Keys.modifierFingerCount)
         if modifierFingerCount < 1 || modifierFingerCount > 4 {
             modifierFingerCount = 2
@@ -278,14 +287,14 @@ final class AppState: ObservableObject {
 
     /// 多指长按开始 → 按住修饰键
     private func handleMultiFingerLongPressBegin() {
-        guard isEnabled && isGestureEnabled else { return }
+        guard isEnabled && isGestureEnabled && isModifierKeyEnabled else { return }
         KeySimulator.holdModifier(keyCode: twoFingerModifierKeyCode)
         provideGestureFeedback(keyName: twoFingerLongPressModifier.capitalized)
     }
 
     /// 多指长按结束 → 释放修饰键
     private func handleMultiFingerLongPressEnd() {
-        guard isEnabled && isGestureEnabled else { return }
+        guard isEnabled && isGestureEnabled && isModifierKeyEnabled else { return }
         KeySimulator.releaseModifier(keyCode: twoFingerModifierKeyCode)
     }
 
@@ -373,5 +382,6 @@ final class AppState: ObservableObject {
         static let twoFingerLongPressModifier = "twoFingerLongPressModifier"  // 多指长按触发的修饰键
         static let modifierFingerCount = "modifierFingerCount"  // 触发长按的手指数
         static let requirePress = "requirePress"  // 是否需要按压触发
+        static let isModifierKeyEnabled = "isModifierKeyEnabled"  // 是否启用修饰键
     }
 }
