@@ -669,20 +669,7 @@ struct SettingsView: View {
                 gestureDisabledHint
             } else {
                 // ── 多指长按修饰键配置 ──
-                HStack {
-                    Label("长按触发修饰键", systemImage: "hand.point.up.left.fill")
-                        .font(.system(size: 12, weight: .bold))
-                        .foregroundStyle(.secondary)
-                    Spacer()
-                    Toggle("", isOn: $appState.isModifierKeyEnabled)
-                        .toggleStyle(.switch)
-                        .labelsHidden()
-                        .scaleEffect(0.8)
-                }
-
-                if appState.isModifierKeyEnabled {
-                    modifierKeySelector
-                }
+                modifierKeySelector
 
                 // MARK: - 自定义手势 UI 暂时隐藏，待功能完善后启用
                 /*
