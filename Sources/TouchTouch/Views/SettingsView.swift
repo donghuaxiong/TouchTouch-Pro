@@ -224,7 +224,18 @@ struct SettingsView: View {
 
     private var controlContent: some View {
         VStack(alignment: .leading, spacing: 14) {
-            sectionHeader(title: "修饰键分层", subtitle: "Option 和 Control 分别控制不同目标")
+            HStack {
+                sectionHeader(title: "修饰键分层", subtitle: "Option 和 Control 分别控制不同目标")
+                Spacer()
+                Toggle("", isOn: $appState.isControlModeEnabled)
+                    .toggleStyle(.switch)
+                    .labelsHidden()
+                    .scaleEffect(0.8)
+            }
+
+            if !appState.isControlModeEnabled {
+                controlDisabledHint
+            } else {
 
             // Option layer
             VStack(alignment: .leading, spacing: 6) {
@@ -315,7 +326,24 @@ struct SettingsView: View {
                 systemImage: "arrow.up.arrow.down",
                 isOn: $appState.reversesScrollDirection
             )
+            } // end of isControlModeEnabled check
         }
+    }
+
+    private var controlDisabledHint: some View {
+        VStack(spacing: 8) {
+            Image(systemName: "gearshape.slash")
+                .font(.system(size: 20))
+                .foregroundStyle(.secondary)
+            Text("控制方式已关闭")
+                .font(.system(size: 12, weight: .medium))
+                .foregroundStyle(.secondary)
+            Text("开启后可使用修饰键分层控制亮度、音量等")
+                .font(.system(size: 11))
+                .foregroundStyle(.tertiary)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 20)
     }
 
     // MARK: - Meeting Tab

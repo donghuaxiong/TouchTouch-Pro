@@ -40,6 +40,13 @@ final class AppState: ObservableObject {
         }
     }
 
+    /// 是否启用控制方式（修饰键分层功能）
+    @Published var isControlModeEnabled: Bool {
+        didSet {
+            defaults.set(isControlModeEnabled, forKey: Keys.isControlModeEnabled)
+        }
+    }
+
     @Published var enhancedEdgeDetection: Bool {
         didSet { defaults.set(enhancedEdgeDetection, forKey: Keys.enhancedEdgeDetection) }
     }
@@ -153,7 +160,8 @@ final class AppState: ObservableObject {
             Keys.twoFingerLongPressModifier: "option",  // 默认触发 option 键
             Keys.modifierFingerCount: 2,  // 默认双指触发
             Keys.requirePress: false,  // 默认轻触触发
-            Keys.isModifierKeyEnabled: true  // 默认启用修饰键
+            Keys.isModifierKeyEnabled: true,  // 默认启用修饰键
+            Keys.isControlModeEnabled: true  // 默认启用控制方式
         ])
 
         isEnabled = defaults.bool(forKey: Keys.isEnabled)
@@ -170,6 +178,7 @@ final class AppState: ObservableObject {
         usesHaptics = defaults.bool(forKey: Keys.usesHaptics)
         hapticIntensity = defaults.double(forKey: Keys.hapticIntensity)
         reversesScrollDirection = defaults.bool(forKey: Keys.reversesScrollDirection)
+        isControlModeEnabled = defaults.bool(forKey: Keys.isControlModeEnabled)
         customGestures = Self.loadCustomGestures()
         isGestureEnabled = defaults.bool(forKey: Keys.isGestureEnabled)
         twoFingerLongPressModifier = defaults.string(forKey: Keys.twoFingerLongPressModifier) ?? "option"
@@ -235,6 +244,8 @@ final class AppState: ObservableObject {
     }
 
     private func perform(target: ActionTarget, direction: AdjustmentDirection) {
+        guard isControlModeEnabled else { return }
+
         // Handle meeting mode actions separately
         if target == .meetingMuteToggle || target == .meetingCameraToggle {
             performMeetingAction(target: target)
@@ -383,5 +394,6 @@ final class AppState: ObservableObject {
         static let modifierFingerCount = "modifierFingerCount"  // 触发长按的手指数
         static let requirePress = "requirePress"  // 是否需要按压触发
         static let isModifierKeyEnabled = "isModifierKeyEnabled"  // 是否启用修饰键
+        static let isControlModeEnabled = "isControlModeEnabled"  // 是否启用控制方式
     }
 }
