@@ -656,6 +656,8 @@ struct SettingsView: View {
                     modifierKeySelector
                 }
 
+                // MARK: - 自定义手势 UI 暂时隐藏，待功能完善后启用
+                /*
                 Divider().opacity(0.3)
 
                 if appState.customGestures.isEmpty {
@@ -670,6 +672,7 @@ struct SettingsView: View {
                 }
 
                 addGestureButton
+                */
             }
 
             // Save toast overlay
