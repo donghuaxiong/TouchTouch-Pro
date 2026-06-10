@@ -22,6 +22,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         setupStatusItem()
         // Pre-initialize AppState to start event monitoring immediately
         _ = AppState.shared
+
+        // 启动时检查权限，缺少则弹窗引导
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+            PermissionManager.checkAndPromptPermissions()
+        }
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {

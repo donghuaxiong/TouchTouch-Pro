@@ -44,6 +44,16 @@ cp "$BUILD_BINARY" "$BINARY"
 chmod +x "$BINARY"
 cp "$DIST_DIR/AppIcon.png" "$RESOURCES_DIR/AppIcon.png"
 
+# Copy kb-brightness helper tool into bundle
+KB_BIN="$ROOT_DIR/.build/apple/Products/Release/kb-brightness"
+if [ -f "$KB_BIN" ]; then
+    cp "$KB_BIN" "$MACOS_DIR/kb-brightness"
+    chmod +x "$MACOS_DIR/kb-brightness"
+    echo "    Included kb-brightness helper"
+else
+    echo "    WARNING: kb-brightness not found, keyboard backlight will not work"
+fi
+
 cat >"$INFO_PLIST" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
