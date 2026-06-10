@@ -84,9 +84,25 @@ final class AppState: ObservableObject {
         didSet { defaults.set(isGestureEnabled, forKey: Keys.isGestureEnabled) }
     }
 
-    /// 双指长按触发的修饰键（control/option/command）
+    /// 多指长按触发的修饰键（control/option/command）
     @Published var twoFingerLongPressModifier: String {
         didSet { defaults.set(twoFingerLongPressModifier, forKey: Keys.twoFingerLongPressModifier) }
+    }
+
+    /// 触发长按所需的手指数（2/3/4）
+    @Published var modifierFingerCount: Int {
+        didSet {
+            defaults.set(modifierFingerCount, forKey: Keys.modifierFingerCount)
+            setupGestureCallbacks()
+        }
+    }
+
+    /// 是否需要按压触发修饰键（false=轻触，true=按压）
+    @Published var requirePress: Bool {
+        didSet {
+            defaults.set(requirePress, forKey: Keys.requirePress)
+            setupGestureCallbacks()
+        }
     }
 
     @Published var isMeetingMode: Bool = false
@@ -127,7 +143,9 @@ final class AppState: ObservableObject {
             Keys.usesHaptics: true,
             Keys.hapticIntensity: 2.0,
             Keys.reversesScrollDirection: false,
-            Keys.twoFingerLongPressModifier: "option"  // 默认触发 option 键
+            Keys.twoFingerLongPressModifier: "option",  // 默认触发 option 键
+            Keys.modifierFingerCount: 2,  // 默认双指触发
+            Keys.requirePress: false  // 默认轻触触发
         ])
 
         isEnabled = defaults.bool(forKey: Keys.isEnabled)
@@ -147,6 +165,11 @@ final class AppState: ObservableObject {
         customGestures = Self.loadCustomGestures()
         isGestureEnabled = defaults.bool(forKey: Keys.isGestureEnabled)
         twoFingerLongPressModifier = defaults.string(forKey: Keys.twoFingerLongPressModifier) ?? "option"
+        requirePress = defaults.bool(forKey: Keys.requirePress)
+        modifierFingerCount = defaults.integer(forKey: Keys.modifierFingerCount)
+        if modifierFingerCount < 2 || modifierFingerCount > 4 {
+            modifierFingerCount = 2
+        }
 
         refreshMonitoring()
         setupGestureCallbacks()
@@ -231,7 +254,7 @@ final class AppState: ObservableObject {
 
     // MARK: - Custom Gestures
 
-    /// 当前双指长按对应的修饰键 keyCode
+    /// 当前多指长按对应的修饰键 keyCode
     private var twoFingerModifierKeyCode: CGKeyCode {
         switch twoFingerLongPressModifier {
         case "control": return 59  // Control (左)
@@ -242,25 +265,26 @@ final class AppState: ObservableObject {
 
     private func setupGestureCallbacks() {
         eventMonitor.setGestureCallbacks(
-            onTwoFingerLongPressBegin: { [weak self] in
-                self?.handleTwoFingerLongPressBegin()
+            onMultiFingerLongPressBegin: { [weak self] in
+                self?.handleMultiFingerLongPressBegin()
             },
-            onTwoFingerLongPressEnd: { [weak self] in
-                self?.handleTwoFingerLongPressEnd()
-            }
+            onMultiFingerLongPressEnd: { [weak self] in
+                self?.handleMultiFingerLongPressEnd()
+            },
+            modifierFingerCount: Int32(modifierFingerCount),
+            requirePress: requirePress
         )
     }
 
-    /// 双指长按开始 → 按住修饰键
-    private func handleTwoFingerLongPressBegin() {
+    /// 多指长按开始 → 按住修饰键
+    private func handleMultiFingerLongPressBegin() {
         guard isEnabled && isGestureEnabled else { return }
-        let keyCode = twoFingerModifierKeyCode
-        KeySimulator.holdModifier(keyCode: keyCode)
+        KeySimulator.holdModifier(keyCode: twoFingerModifierKeyCode)
         provideGestureFeedback(keyName: twoFingerLongPressModifier.capitalized)
     }
 
-    /// 双指长按结束 → 释放修饰键
-    private func handleTwoFingerLongPressEnd() {
+    /// 多指长按结束 → 释放修饰键
+    private func handleMultiFingerLongPressEnd() {
         guard isEnabled && isGestureEnabled else { return }
         KeySimulator.releaseModifier(keyCode: twoFingerModifierKeyCode)
     }
@@ -346,6 +370,8 @@ final class AppState: ObservableObject {
         static let reversesScrollDirection = "reversesScrollDirection"
         static let customGestures = "customGestures"
         static let isGestureEnabled = "isGestureEnabled"
-        static let twoFingerLongPressModifier = "twoFingerLongPressModifier"  // 双指长按触发的修饰键
+        static let twoFingerLongPressModifier = "twoFingerLongPressModifier"  // 多指长按触发的修饰键
+        static let modifierFingerCount = "modifierFingerCount"  // 触发长按的手指数
+        static let requirePress = "requirePress"  // 是否需要按压触发
     }
 }

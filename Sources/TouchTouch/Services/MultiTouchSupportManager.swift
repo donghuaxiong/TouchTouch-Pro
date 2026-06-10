@@ -61,12 +61,19 @@ final class MultiTouchSupportManager {
     nonisolated(unsafe) var onHorizontalSwipe: ((Int32, AdjustmentDirection) -> Void)?
     private var lastFingerCount: Int32 = 0
 
-    // ── 双指长按检测（模拟按住修饰键）──
-    nonisolated(unsafe) var onTwoFingerLongPressBegin: (() -> Void)?
-    nonisolated(unsafe) var onTwoFingerLongPressEnd: (() -> Void)?
+    // ── 多指长按检测（模拟按住修饰键）──
+    nonisolated(unsafe) var onMultiFingerLongPressBegin: (() -> Void)?
+    nonisolated(unsafe) var onMultiFingerLongPressEnd: (() -> Void)?
+    /// 触发长按所需的手指数（2/3/4）
+    var modifierFingerCount: Int32 = 2
+    /// 是否需要按压触发（false=轻触，true=按压）
+    var requirePress: Bool = false
+    /// 按压检测阈值（size字段超过此值判定为按压）
+    private let pressThreshold: Float32 = 0.9
     private var touchActive = false
     private var touchStartTime = Date.distantPast
     private var modifierHeld = false
+    private var pressDetected = false  // 当前帧是否检测到按压
     private let longPressDelay: TimeInterval = 0.3  // 长按延迟时间
 
     func start() {
@@ -147,34 +154,47 @@ final class MultiTouchSupportManager {
         return latestAverageX
     }
 
-    private func update(averageX: Double, fingerCount: Int32) {
+    private func update(averageX: Double, fingerCount: Int32, maxSize: Float32) {
         latestAverageX = averageX
         latestUpdateDate = Date()
         let now = Date()
 
-        // ── 双指长按检测 ─
-        if fingerCount == 2 && !touchActive {
+        // ── 多指长按检测 ─
+        let required = modifierFingerCount
+
+        // 按压模式：检测是否有物理按压
+        if requirePress {
+            if maxSize >= pressThreshold {
+                pressDetected = true
+            }
+        } else {
+            // 轻触模式：不需要按压检测
+            pressDetected = true
+        }
+
+        if fingerCount >= required && !touchActive && pressDetected {
             touchActive = true
             touchStartTime = now
             modifierHeld = false
         }
         
         // 检查是否达到长按阈值
-        if fingerCount == 2 && touchActive && !modifierHeld {
+        if fingerCount >= required && touchActive && !modifierHeld {
             let elapsed = now.timeIntervalSince(touchStartTime)
             if elapsed >= longPressDelay {
-                onTwoFingerLongPressBegin?()
+                onMultiFingerLongPressBegin?()
                 modifierHeld = true
             }
         }
         
-        // 手指抬起
-        if fingerCount < 2 && touchActive {
+        // 手指抬起（低于所需数量）
+        if fingerCount < required && touchActive {
             if modifierHeld {
-                onTwoFingerLongPressEnd?()
+                onMultiFingerLongPressEnd?()
             }
             touchActive = false
             modifierHeld = false
+            pressDetected = false
         }
 
         // ── 水平滑动检测（用于会议模式切换等）──
@@ -197,10 +217,11 @@ final class MultiTouchSupportManager {
     /// 触摸结束（fingerCount 降为 0）
     private func updateTouchEnd() {
         if touchActive && modifierHeld {
-            onTwoFingerLongPressEnd?()
+            onMultiFingerLongPressEnd?()
         }
         touchActive = false
         modifierHeld = false
+        pressDetected = false
         horizontalAccumulatedX = 0
         previousAverageX = nil
     }
@@ -225,6 +246,18 @@ final class MultiTouchSupportManager {
         return xs.reduce(0, +) / Double(xs.count)
     }
 
+    /// 提取所有手指中最大的 size 值（用于按压检测）
+    private nonisolated static func maxFingerSize(fingers: UnsafeMutableRawPointer?, count: Int32) -> Float32 {
+        guard let fingers, count > 0 else { return 0 }
+        let typedFingers = fingers.bindMemory(to: MTFinger.self, capacity: Int(count))
+        var maxSize: Float32 = 0
+        for i in 0..<Int(count) {
+            let s = typedFingers[i].size
+            if s > maxSize { maxSize = s }
+        }
+        return maxSize
+    }
+
     private nonisolated static let contactFrameCallback: MTContactFrameCallback = {
         _, fingers, fingerCount, _, _ in
         if fingerCount == 0 {
@@ -236,8 +269,9 @@ final class MultiTouchSupportManager {
         guard let avgX = MultiTouchSupportManager.averageX(fingers: fingers, count: fingerCount) else {
             return 0
         }
+        let maxSize = MultiTouchSupportManager.maxFingerSize(fingers: fingers, count: fingerCount)
         Task { @MainActor in
-            MultiTouchSupportManager.activeMonitor?.update(averageX: avgX, fingerCount: fingerCount)
+            MultiTouchSupportManager.activeMonitor?.update(averageX: avgX, fingerCount: fingerCount, maxSize: maxSize)
         }
         return 0
     }

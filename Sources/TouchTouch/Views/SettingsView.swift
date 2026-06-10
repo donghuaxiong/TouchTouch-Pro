@@ -674,17 +674,49 @@ struct SettingsView: View {
         }
     }
 
-    /// 双指长按修饰键选择器
+    /// 多指长按配置：手指数 + 修饰键选择器
     private var modifierKeySelector: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Label("双指长按触发", systemImage: "hand.point.up.left.fill")
-                .font(.system(size: 12, weight: .bold))
-                .foregroundStyle(.secondary)
+        VStack(alignment: .leading, spacing: 12) {
+            // ── 手指数选择 ──
+            VStack(alignment: .leading, spacing: 6) {
+                Label("长按触发修饰键", systemImage: "hand.point.up.left.fill")
+                    .font(.system(size: 12, weight: .bold))
+                    .foregroundStyle(.secondary)
 
-            HStack(spacing: 8) {
-                modifierKeyButton(key: "control", symbol: "", color: .indigo)
-                modifierKeyButton(key: "option", symbol: "", color: .orange)
-                modifierKeyButton(key: "command", symbol: "", color: .blue)
+                HStack(spacing: 6) {
+                    ForEach([2, 3, 4], id: \.self) { count in
+                        fingerCountButton(count: count)
+                    }
+                }
+            }
+
+            Divider().opacity(0.2)
+
+            // ── 触发方式选择 ──
+            VStack(alignment: .leading, spacing: 6) {
+                Text("触发方式")
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundStyle(.secondary)
+
+                HStack(spacing: 6) {
+                    triggerModeButton(isPress: false, label: "轻触", icon: "hand.draw")
+                    triggerModeButton(isPress: true, label: "按压", icon: "hand.point.up.left.fill")
+                }
+            }
+
+            Divider().opacity(0.2)
+
+            // ── 修饰键选择 ──
+            VStack(alignment: .leading, spacing: 6) {
+                Text("触发按键")
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundStyle(.secondary)
+
+                HStack(spacing: 8) {
+                    modifierKeyButton(key: "control", symbol: "", color: .indigo)
+                    modifierKeyButton(key: "option", symbol: "", color: .orange)
+                    modifierKeyButton(key: "command", symbol: "", color: .blue)
+                }
             }
         }
         .padding(12)
@@ -696,6 +728,59 @@ struct SettingsView: View {
             RoundedRectangle(cornerRadius: 12, style: .continuous)
                 .strokeBorder(Color.white.opacity(0.2), lineWidth: 1)
         )
+    }
+
+    private func fingerCountButton(count: Int) -> some View {
+        let isSelected = appState.modifierFingerCount == count
+        return Button {
+            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                appState.modifierFingerCount = count
+            }
+        } label: {
+            Text("\(count) 指")
+                .font(.system(size: 12, weight: isSelected ? .bold : .medium))
+                .foregroundStyle(isSelected ? .white : .primary)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 7)
+                .background(
+                    RoundedRectangle(cornerRadius: 8, style: .continuous)
+                        .fill(isSelected ? Color.accentColor : Color.secondary.opacity(0.08))
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 8, style: .continuous)
+                        .strokeBorder(isSelected ? Color.accentColor : Color.secondary.opacity(0.2), lineWidth: 1)
+                )
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func triggerModeButton(isPress: Bool, label: String, icon: String) -> some View {
+        let isSelected = appState.requirePress == isPress
+        let color: Color = isPress ? .red : .green
+        return Button {
+            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                appState.requirePress = isPress
+            }
+        } label: {
+            HStack(spacing: 5) {
+                Image(systemName: icon)
+                    .font(.system(size: 11, weight: .semibold))
+                Text(label)
+                    .font(.system(size: 12, weight: isSelected ? .bold : .medium))
+            }
+            .foregroundStyle(isSelected ? .white : .primary)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 7)
+            .background(
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .fill(isSelected ? color : color.opacity(0.10))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .strokeBorder(isSelected ? color : color.opacity(0.2), lineWidth: 1)
+            )
+        }
+        .buttonStyle(.plain)
     }
 
     private func modifierKeyButton(key: String, symbol: String, color: Color) -> some View {
