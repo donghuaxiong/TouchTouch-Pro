@@ -684,7 +684,7 @@ struct SettingsView: View {
                     .foregroundStyle(.secondary)
 
                 HStack(spacing: 6) {
-                    ForEach([2, 3, 4], id: \.self) { count in
+                    ForEach([1, 2, 3, 4], id: \.self) { count in
                         fingerCountButton(count: count)
                     }
                 }

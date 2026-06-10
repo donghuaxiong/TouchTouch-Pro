@@ -64,7 +64,7 @@ final class MultiTouchSupportManager {
     // ── 多指长按检测（模拟按住修饰键）──
     nonisolated(unsafe) var onMultiFingerLongPressBegin: (() -> Void)?
     nonisolated(unsafe) var onMultiFingerLongPressEnd: (() -> Void)?
-    /// 触发长按所需的手指数（2/3/4）
+    /// 触发长按所需的手指数（1/2/3/4）
     var modifierFingerCount: Int32 = 2
     /// 是否需要按压触发（false=轻触，true=按压）
     var requirePress: Bool = false

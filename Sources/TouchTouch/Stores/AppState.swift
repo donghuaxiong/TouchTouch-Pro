@@ -167,7 +167,7 @@ final class AppState: ObservableObject {
         twoFingerLongPressModifier = defaults.string(forKey: Keys.twoFingerLongPressModifier) ?? "option"
         requirePress = defaults.bool(forKey: Keys.requirePress)
         modifierFingerCount = defaults.integer(forKey: Keys.modifierFingerCount)
-        if modifierFingerCount < 2 || modifierFingerCount > 4 {
+        if modifierFingerCount < 1 || modifierFingerCount > 4 {
             modifierFingerCount = 2
         }
 
