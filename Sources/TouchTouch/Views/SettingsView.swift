@@ -57,7 +57,7 @@ struct SettingsView: View {
             }
         }
         .environment(\.colorScheme, appState.usesDarkHUDBackground ? .dark : .light)
-        .frame(width: 580, height: 480)
+        .frame(width: 580, height: 540)
     }
 
     // MARK: - Background
@@ -206,7 +206,7 @@ struct SettingsView: View {
 
     @ViewBuilder
     private var content: some View {
-        ScrollView(.vertical, showsIndicators: false) {
+        ScrollView(.vertical) {
             VStack(alignment: .leading, spacing: 16) {
                 switch selectedTab {
                 case .control:    controlContent
