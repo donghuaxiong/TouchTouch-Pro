@@ -47,16 +47,32 @@ final class RadialMenuManager {
     // MARK: - Panel
 
     private func makePanel() -> NSPanel {
+        let size = NSSize(width: 360, height: 360)
         let panel = NSPanel(
-            contentRect: NSRect(x: 0, y: 0, width: 360, height: 360),
+            contentRect: NSRect(origin: .zero, size: size),
             styleMask: [.borderless, .nonactivatingPanel],
             backing: .buffered,
             defer: false
         )
+
         let hostingView = NSHostingView(rootView: RadialMenuView(state: state))
-        hostingView.wantsLayer = true
-        hostingView.layer?.backgroundColor = NSColor.clear.cgColor
-        panel.contentView = hostingView
+        hostingView.frame = NSRect(origin: .zero, size: size)
+        hostingView.translatesAutoresizingMaskIntoConstraints = false
+
+        // 使用圆形遮罩容器
+        let containerView = CircularMaskView(frame: NSRect(origin: .zero, size: size))
+        containerView.addSubview(hostingView)
+        containerView.wantsLayer = true
+        containerView.layer?.backgroundColor = NSColor.clear.cgColor
+
+        NSLayoutConstraint.activate([
+            hostingView.leadingAnchor.constraint(equalTo: containerView.leadingAnchor),
+            hostingView.trailingAnchor.constraint(equalTo: containerView.trailingAnchor),
+            hostingView.topAnchor.constraint(equalTo: containerView.topAnchor),
+            hostingView.bottomAnchor.constraint(equalTo: containerView.bottomAnchor),
+        ])
+
+        panel.contentView = containerView
         panel.backgroundColor = .clear
         panel.isOpaque = false
         panel.hasShadow = false
@@ -65,5 +81,57 @@ final class RadialMenuManager {
         panel.ignoresMouseEvents = true
         self.panel = panel
         return panel
+    }
+}
+
+// MARK: - Circular Mask View
+
+/// 一个 NSView 子类，使用 CAShapeLayer 圆形遮罩裁剪所有内容。
+private final class CircularMaskView: NSView {
+    override func layout() {
+        super.layout()
+        let radius = min(bounds.width, bounds.height) / 2
+        let circlePath = NSBezierPath(
+            ovalIn: NSRect(
+                x: bounds.midX - radius,
+                y: bounds.midY - radius,
+                width: radius * 2,
+                height: radius * 2
+            )
+        )
+        let maskLayer = CAShapeLayer()
+        maskLayer.path = circlePath.cgPath
+        layer?.mask = maskLayer
+    }
+
+    override var isFlipped: Bool { false }
+}
+
+// MARK: - NSBezierPath → CGPath Extension
+
+private extension NSBezierPath {
+    var cgPath: CGPath {
+        let path = CGMutablePath()
+        var points = [CGPoint](repeating: .zero, count: 3)
+        for i in 0..<elementCount {
+            let type = element(at: i, associatedPoints: &points)
+            switch type {
+            case .moveTo:
+                path.move(to: points[0])
+            case .lineTo:
+                path.addLine(to: points[0])
+            case .curveTo:
+                path.addCurve(to: points[2], control1: points[0], control2: points[1])
+            case .closePath:
+                path.closeSubpath()
+            case .cubicCurveTo:
+                path.addCurve(to: points[2], control1: points[0], control2: points[1])
+            case .quadraticCurveTo:
+                path.addQuadCurve(to: points[1], control: points[0])
+            @unknown default:
+                break
+            }
+        }
+        return path
     }
 }
