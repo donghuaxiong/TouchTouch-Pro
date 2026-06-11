@@ -53,7 +53,10 @@ final class RadialMenuManager {
             backing: .buffered,
             defer: false
         )
-        panel.contentView = NSHostingView(rootView: RadialMenuView(state: state))
+        let hostingView = NSHostingView(rootView: RadialMenuView(state: state))
+        hostingView.wantsLayer = true
+        hostingView.layer?.backgroundColor = NSColor.clear.cgColor
+        panel.contentView = hostingView
         panel.backgroundColor = .clear
         panel.isOpaque = false
         panel.hasShadow = false

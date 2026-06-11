@@ -45,6 +45,7 @@ struct RadialMenuView: View {
             centerCircle
         }
         .frame(width: discSize, height: discSize)
+        .background(Color.clear)
         .animation(.easeOut(duration: 0.12), value: state.selectedIndex)
     }
 
