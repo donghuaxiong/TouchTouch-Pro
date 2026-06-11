@@ -33,8 +33,11 @@ final class MeetingActionManager {
         sendKeyboardShortcut(keyCode: 9, flags: [.maskCommand, .maskShift])
     }
 
+    /// Shared event source — avoid creating a new one per call.
+    private nonisolated(unsafe) static let sharedEventSource = CGEventSource(stateID: .combinedSessionState)
+
     private static func sendKeyboardShortcut(keyCode: CGKeyCode, flags: CGEventFlags) {
-        guard let source = CGEventSource(stateID: .combinedSessionState) else { return }
+        guard let source = sharedEventSource else { return }
 
         let keyDown = CGEvent(keyboardEventSource: source, virtualKey: keyCode, keyDown: true)
         let keyUp = CGEvent(keyboardEventSource: source, virtualKey: keyCode, keyDown: false)

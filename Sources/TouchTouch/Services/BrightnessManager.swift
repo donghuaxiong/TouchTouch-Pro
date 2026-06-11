@@ -99,6 +99,9 @@ private final class DisplayServicesBrightnessController {
 private final class BrightnessCLIController {
     private let executableURL: URL
     private var cachedValue: Double?
+    private static let brightnessRegex = try? NSRegularExpression(
+        pattern: #"brightness\s+([0-9]*\.?[0-9]+)"#
+    )
 
     init(executablePath: String) {
         executableURL = URL(fileURLWithPath: executablePath)
@@ -125,9 +128,8 @@ private final class BrightnessCLIController {
         let result = ProcessRunner.run(executableURL, arguments: ["-l"])
         guard result.exitCode == 0 else { return nil }
 
-        let pattern = #"brightness\s+([0-9]*\.?[0-9]+)"#
         guard
-            let regex = try? NSRegularExpression(pattern: pattern),
+            let regex = Self.brightnessRegex,
             let match = regex.firstMatch(
                 in: result.output,
                 range: NSRange(result.output.startIndex..., in: result.output)
