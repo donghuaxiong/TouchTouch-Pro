@@ -132,6 +132,10 @@ final class AppState: ObservableObject {
     @Published var radialRequirePress: Bool = false {
         didSet { defaults.set(radialRequirePress, forKey: Keys.radialRequirePress) }
     }
+    /// 转盘旋转灵敏度（1.0~15.0，默认 5.0）
+    @Published var radialRotationSensitivity: Double = 5.0 {
+        didSet { defaults.set(radialRotationSensitivity, forKey: Keys.radialRotationSensitivity) }
+    }
     @Published var radialMenuItems: [RadialMenuItem] = [] {
         didSet { persistRadialMenuItems() }
     }
@@ -183,7 +187,8 @@ final class AppState: ObservableObject {
             Keys.isControlModeEnabled: true,  // 默认启用控制方式
             Keys.isRadialMenuEnabled: false,
             Keys.radialTriggerFingerCount: 2,
-            Keys.radialRequirePress: false
+            Keys.radialRequirePress: false,
+            Keys.radialRotationSensitivity: 5.0
         ])
 
         isEnabled = defaults.bool(forKey: Keys.isEnabled)
@@ -221,6 +226,10 @@ final class AppState: ObservableObject {
             radialTriggerFingerCount = 2
         }
         radialRequirePress = defaults.bool(forKey: Keys.radialRequirePress)
+        radialRotationSensitivity = defaults.double(forKey: Keys.radialRotationSensitivity)
+        if radialRotationSensitivity < 1.0 || radialRotationSensitivity > 15.0 {
+            radialRotationSensitivity = 5.0
+        }
         radialMenuItems = Self.loadRadialMenuItems()
 
         refreshMonitoring()
@@ -423,7 +432,8 @@ final class AppState: ObservableObject {
                 self?.handleRadialTrigger()
             },
             triggerFingerCount: Int32(radialTriggerFingerCount),
-            triggerRequirePress: radialRequirePress
+            triggerRequirePress: radialRequirePress,
+            rotationSensitivity: radialRotationSensitivity
         )
     }
 
@@ -521,6 +531,7 @@ final class AppState: ObservableObject {
         static let isRadialMenuEnabled = "isRadialMenuEnabled"
         static let radialTriggerFingerCount = "radialTriggerFingerCount"
         static let radialRequirePress = "radialRequirePress"
+        static let radialRotationSensitivity = "radialRotationSensitivity"
         static let radialMenuItems = "radialMenuItems"
     }
 }

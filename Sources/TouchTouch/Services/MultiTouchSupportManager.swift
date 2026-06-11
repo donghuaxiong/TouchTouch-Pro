@@ -79,11 +79,13 @@ final class MultiTouchSupportManager {
     // ── 转盘模式（一触即达）──
     /// 外部设置为 true 时进入转盘模式，跳过长按/滑动逻辑
     var radialModeActive: Bool = false
-    /// 旋转角度增量回调（基于手指画圈角度变化）
+    /// 旋转角度增量回调（基于手指上下滑动）
     nonisolated(unsafe) var onRadialRotation: ((Double) -> Void)?
     /// 手指抬起回调（转盘模式）
     nonisolated(unsafe) var onRadialFingerUp: (() -> Void)?
-    private var radialPreviousAngle: Double?
+    private var radialPreviousY: Double?
+    /// 旋转灵敏度（越大越快，默认 5.0）
+    var radialRotationSensitivity: Double = 5.0
 
     // ── 转盘触发检测（独立于修饰键长按）──
     /// 转盘触发所需手指数
@@ -181,21 +183,15 @@ final class MultiTouchSupportManager {
         latestUpdateDate = Date()
         let now = Date()
 
-        // ── 转盘模式：画圈旋转 ──
+        // ── 转盘模式：上下滑动旋转 ──
         if radialModeActive {
-            // 计算手指相对于触控板中心的角度
-            let dx = averageX - 0.5
-            let dy = averageY - 0.5
-            let currentAngle = atan2(dy, dx)
-
-            if let prevAngle = radialPreviousAngle {
-                var delta = currentAngle - prevAngle
-                // 处理角度跨越 π/-π 边界
-                if delta > .pi { delta -= 2 * .pi }
-                if delta < -.pi { delta += 2 * .pi }
-                onRadialRotation?(delta)
+            if let prevY = radialPreviousY {
+                let deltaY = averageY - prevY
+                // 上滑为负 deltaY（Y轴向上为正），映射为正向旋转
+                let rotationDelta = -deltaY * radialRotationSensitivity
+                onRadialRotation?(rotationDelta)
             }
-            radialPreviousAngle = currentAngle
+            radialPreviousY = averageY
             return
         }
 
@@ -291,7 +287,7 @@ final class MultiTouchSupportManager {
         // ── 转盘模式松手 ──
         if radialModeActive {
             onRadialFingerUp?()
-            radialPreviousAngle = nil
+            radialPreviousY = nil
             return
         }
 

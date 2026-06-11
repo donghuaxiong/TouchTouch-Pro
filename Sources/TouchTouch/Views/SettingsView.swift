@@ -386,6 +386,17 @@ struct SettingsView: View {
                 }
             }
 
+            DesignedSlider(
+                title: "旋转灵敏度",
+                value: $appState.radialRotationSensitivity,
+                range: 1.0...15.0,
+                suffix: "",
+                scale: 1
+            )
+            Text("上下滑动速度越快，切换越灵敏")
+                .font(.system(size: 10))
+                .foregroundStyle(.tertiary)
+
             Divider().opacity(0.2)
 
             // 转盘项管理

@@ -100,13 +100,15 @@ final class TrackpadEventMonitor {
         onFingerUp: (() -> Void)?,
         onTrigger: (() -> Void)?,
         triggerFingerCount: Int32 = 2,
-        triggerRequirePress: Bool = false
+        triggerRequirePress: Bool = false,
+        rotationSensitivity: Double = 5.0
     ) {
         multiTouchManager.onRadialRotation = onRotation
         multiTouchManager.onRadialFingerUp = onFingerUp
         multiTouchManager.onRadialTrigger = onTrigger
         multiTouchManager.radialTriggerFingerCount = triggerFingerCount
         multiTouchManager.radialRequirePress = triggerRequirePress
+        multiTouchManager.radialRotationSensitivity = rotationSensitivity
     }
 
     /// Activate/deactivate radial mode on the underlying MultiTouchSupportManager.
