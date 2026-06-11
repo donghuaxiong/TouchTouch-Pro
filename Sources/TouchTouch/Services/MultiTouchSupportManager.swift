@@ -79,11 +79,11 @@ final class MultiTouchSupportManager {
     // ── 转盘模式（一触即达）──
     /// 外部设置为 true 时进入转盘模式，跳过长按/滑动逻辑
     var radialModeActive: Bool = false
-    /// 旋转角度增量回调（基于单指水平位移）
+    /// 旋转角度增量回调（基于手指画圈角度变化）
     nonisolated(unsafe) var onRadialRotation: ((Double) -> Void)?
     /// 手指抬起回调（转盘模式）
     nonisolated(unsafe) var onRadialFingerUp: (() -> Void)?
-    private var radialPreviousX: Double?
+    private var radialPreviousAngle: Double?
 
     // ── 转盘触发检测（独立于修饰键长按）──
     /// 转盘触发所需手指数
@@ -176,21 +176,26 @@ final class MultiTouchSupportManager {
         return latestAverageX
     }
 
-    private func update(averageX: Double, fingerCount: Int32, maxSize: Float32) {
+    private func update(averageX: Double, averageY: Double, fingerCount: Int32, maxSize: Float32) {
         latestAverageX = averageX
         latestUpdateDate = Date()
         let now = Date()
 
-        // ── 转盘模式：单指旋转 ──
+        // ── 转盘模式：画圈旋转 ──
         if radialModeActive {
-            if let prevX = radialPreviousX {
-                let deltaX = averageX - prevX
-                // 触控板宽度 ~0.13m，映射到圆周 360°
-                // deltaX 范围大约 -0.5~0.5，映射为旋转弧度
-                let rotationDelta = deltaX * 2 * .pi
-                onRadialRotation?(rotationDelta)
+            // 计算手指相对于触控板中心的角度
+            let dx = averageX - 0.5
+            let dy = averageY - 0.5
+            let currentAngle = atan2(dy, dx)
+
+            if let prevAngle = radialPreviousAngle {
+                var delta = currentAngle - prevAngle
+                // 处理角度跨越 π/-π 边界
+                if delta > .pi { delta -= 2 * .pi }
+                if delta < -.pi { delta += 2 * .pi }
+                onRadialRotation?(delta)
             }
-            radialPreviousX = averageX
+            radialPreviousAngle = currentAngle
             return
         }
 
@@ -286,7 +291,7 @@ final class MultiTouchSupportManager {
         // ── 转盘模式松手 ──
         if radialModeActive {
             onRadialFingerUp?()
-            radialPreviousX = nil
+            radialPreviousAngle = nil
             return
         }
 
@@ -325,6 +330,21 @@ final class MultiTouchSupportManager {
         return xs.reduce(0, +) / Double(xs.count)
     }
 
+    /// 提取所有手指的平均 Y 坐标
+    private nonisolated static func averageY(fingers: UnsafeMutableRawPointer?, count: Int32) -> Double? {
+        guard let fingers, count > 0 else { return nil }
+        let typedFingers = fingers.bindMemory(to: MTFinger.self, capacity: Int(count))
+
+        let ys = (0..<Int(count)).compactMap { index -> Double? in
+            let y = Double(typedFingers[index].normalized.position.y)
+            guard y >= 0, y <= 1 else { return nil }
+            return y
+        }
+
+        guard !ys.isEmpty else { return nil }
+        return ys.reduce(0, +) / Double(ys.count)
+    }
+
     /// 提取所有手指中最大的 size 值（用于按压检测）
     private nonisolated static func maxFingerSize(fingers: UnsafeMutableRawPointer?, count: Int32) -> Float32 {
         guard let fingers, count > 0 else { return 0 }
@@ -345,12 +365,13 @@ final class MultiTouchSupportManager {
             }
             return 0
         }
-        guard let avgX = MultiTouchSupportManager.averageX(fingers: fingers, count: fingerCount) else {
+        guard let avgX = MultiTouchSupportManager.averageX(fingers: fingers, count: fingerCount),
+              let avgY = MultiTouchSupportManager.averageY(fingers: fingers, count: fingerCount) else {
             return 0
         }
         let maxSize = MultiTouchSupportManager.maxFingerSize(fingers: fingers, count: fingerCount)
         DispatchQueue.main.async {
-            MultiTouchSupportManager.activeMonitor?.update(averageX: avgX, fingerCount: fingerCount, maxSize: maxSize)
+            MultiTouchSupportManager.activeMonitor?.update(averageX: avgX, averageY: avgY, fingerCount: fingerCount, maxSize: maxSize)
         }
         return 0
     }
