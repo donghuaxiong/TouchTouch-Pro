@@ -733,6 +733,19 @@ struct SettingsView: View {
                     triggerModeButton(isPress: false, label: "轻触", icon: "hand.draw")
                     triggerModeButton(isPress: true, label: "按压", icon: "hand.point.up.left.fill")
                 }
+
+                if appState.requirePress {
+                    DesignedSlider(
+                        title: "按压力度",
+                        value: $appState.pressThreshold,
+                        range: 0.5...1.1,
+                        suffix: "",
+                        scale: 100
+                    )
+                    Text("越低越灵敏，越高需要更用力")
+                        .font(.system(size: 10))
+                        .foregroundStyle(.tertiary)
+                }
             }
 
             Divider().opacity(0.2)

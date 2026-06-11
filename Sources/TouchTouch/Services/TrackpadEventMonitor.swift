@@ -84,12 +84,14 @@ final class TrackpadEventMonitor {
         onMultiFingerLongPressBegin: (() -> Void)?,
         onMultiFingerLongPressEnd: (() -> Void)?,
         modifierFingerCount: Int32 = 2,
-        requirePress: Bool = false
+        requirePress: Bool = false,
+        pressThreshold: Float32 = 0.9
     ) {
         multiTouchManager.onMultiFingerLongPressBegin = onMultiFingerLongPressBegin
         multiTouchManager.onMultiFingerLongPressEnd = onMultiFingerLongPressEnd
         multiTouchManager.modifierFingerCount = modifierFingerCount
         multiTouchManager.requirePress = requirePress
+        multiTouchManager.pressThreshold = pressThreshold
     }
 
     func start() {

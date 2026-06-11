@@ -112,6 +112,14 @@ final class AppState: ObservableObject {
         }
     }
 
+    /// 按压力度阈值（0.5~1.1，越低越灵敏）
+    @Published var pressThreshold: Double = 0.9 {
+        didSet {
+            defaults.set(pressThreshold, forKey: Keys.pressThreshold)
+            setupGestureCallbacks()
+        }
+    }
+
     @Published var isMeetingMode: Bool = false
 
     private let defaults = UserDefaults.standard
@@ -153,6 +161,7 @@ final class AppState: ObservableObject {
             Keys.twoFingerLongPressModifier: "option",  // 默认触发 option 键
             Keys.modifierFingerCount: 2,  // 默认双指触发
             Keys.requirePress: false,  // 默认轻触触发
+            Keys.pressThreshold: 0.9,  // 默认按压阈值
             Keys.isControlModeEnabled: true  // 默认启用控制方式
         ])
 
@@ -178,6 +187,11 @@ final class AppState: ObservableObject {
         modifierFingerCount = defaults.integer(forKey: Keys.modifierFingerCount)
         if modifierFingerCount < 1 || modifierFingerCount > 4 {
             modifierFingerCount = 2
+        }
+        // pressThreshold 必须在 modifierFingerCount 之后初始化（didSet 会调用 setupGestureCallbacks）
+        pressThreshold = defaults.double(forKey: Keys.pressThreshold)
+        if pressThreshold < 0.5 || pressThreshold > 1.1 {
+            pressThreshold = 0.9
         }
 
         refreshMonitoring()
@@ -283,7 +297,8 @@ final class AppState: ObservableObject {
                 self?.handleMultiFingerLongPressEnd()
             },
             modifierFingerCount: Int32(modifierFingerCount),
-            requirePress: requirePress
+            requirePress: requirePress,
+            pressThreshold: Float32(pressThreshold)
         )
     }
 
@@ -384,6 +399,7 @@ final class AppState: ObservableObject {
         static let twoFingerLongPressModifier = "twoFingerLongPressModifier"  // 多指长按触发的修饰键
         static let modifierFingerCount = "modifierFingerCount"  // 触发长按的手指数
         static let requirePress = "requirePress"  // 是否需要按压触发
+        static let pressThreshold = "pressThreshold"  // 按压阈值
         static let isControlModeEnabled = "isControlModeEnabled"  // 是否启用控制方式
     }
 }

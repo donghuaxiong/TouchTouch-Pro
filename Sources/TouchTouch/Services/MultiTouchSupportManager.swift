@@ -69,7 +69,7 @@ final class MultiTouchSupportManager {
     /// 是否需要按压触发（false=轻触，true=按压）
     var requirePress: Bool = false
     /// 按压检测阈值（size字段超过此值判定为按压）
-    private let pressThreshold: Float32 = 0.9
+    var pressThreshold: Float32 = 0.9
     private var touchActive = false
     private var touchStartTime = Date.distantPast
     private var modifierHeld = false
