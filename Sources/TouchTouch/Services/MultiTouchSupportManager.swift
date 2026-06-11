@@ -76,6 +76,28 @@ final class MultiTouchSupportManager {
     private var pressDetected = false  // 当前帧是否检测到按压
     private let longPressDelay: TimeInterval = 0.3  // 长按延迟时间
 
+    // ── 转盘模式（一触即达）──
+    /// 外部设置为 true 时进入转盘模式，跳过长按/滑动逻辑
+    var radialModeActive: Bool = false
+    /// 旋转角度增量回调（基于单指水平位移）
+    nonisolated(unsafe) var onRadialRotation: ((Double) -> Void)?
+    /// 手指抬起回调（转盘模式）
+    nonisolated(unsafe) var onRadialFingerUp: (() -> Void)?
+    private var radialPreviousX: Double?
+
+    // ── 转盘触发检测（独立于修饰键长按）──
+    /// 转盘触发所需手指数
+    var radialTriggerFingerCount: Int32 = 2
+    /// 转盘触发是否需要按压
+    var radialRequirePress: Bool = false
+    /// 转盘触发成功回调
+    nonisolated(unsafe) var onRadialTrigger: (() -> Void)?
+    private var radialTouchActive = false
+    private var radialTouchStartTime = Date.distantPast
+    private var radialTriggerFired = false
+    private var radialPressDetected = false
+    private let radialTriggerDelay: TimeInterval = 0.25
+
     func start() {
         guard frameworkHandle == nil else { return }
         let path = "/System/Library/PrivateFrameworks/MultiTouchSupport.framework/MultitouchSupport"
@@ -159,6 +181,19 @@ final class MultiTouchSupportManager {
         latestUpdateDate = Date()
         let now = Date()
 
+        // ── 转盘模式：单指旋转 ──
+        if radialModeActive {
+            if let prevX = radialPreviousX {
+                let deltaX = averageX - prevX
+                // 触控板宽度 ~0.13m，映射到圆周 360°
+                // deltaX 范围大约 -0.5~0.5，映射为旋转弧度
+                let rotationDelta = deltaX * 2 * .pi
+                onRadialRotation?(rotationDelta)
+            }
+            radialPreviousX = averageX
+            return
+        }
+
         // ── 多指长按检测 ─
         let required = modifierFingerCount
 
@@ -197,6 +232,38 @@ final class MultiTouchSupportManager {
             pressDetected = false
         }
 
+        // ── 转盘触发检测（独立于修饰键）──
+        if !radialModeActive {
+            let radialRequired = radialTriggerFingerCount
+            if radialRequirePress {
+                if maxSize >= pressThreshold {
+                    radialPressDetected = true
+                }
+            } else {
+                radialPressDetected = true
+            }
+
+            if fingerCount >= radialRequired && !radialTouchActive && radialPressDetected {
+                radialTouchActive = true
+                radialTouchStartTime = now
+                radialTriggerFired = false
+            }
+
+            if fingerCount >= radialRequired && radialTouchActive && !radialTriggerFired {
+                let elapsed = now.timeIntervalSince(radialTouchStartTime)
+                if elapsed >= radialTriggerDelay {
+                    onRadialTrigger?()
+                    radialTriggerFired = true
+                }
+            }
+
+            if fingerCount < radialRequired && radialTouchActive {
+                radialTouchActive = false
+                radialTriggerFired = false
+                radialPressDetected = false
+            }
+        }
+
         // ── 水平滑动检测（用于会议模式切换等）──
         guard let prevX = previousAverageX else {
             previousAverageX = averageX
@@ -216,6 +283,18 @@ final class MultiTouchSupportManager {
 
     /// 触摸结束（fingerCount 降为 0）
     private func updateTouchEnd() {
+        // ── 转盘模式松手 ──
+        if radialModeActive {
+            onRadialFingerUp?()
+            radialPreviousX = nil
+            return
+        }
+
+        // ── 转盘触发重置 ──
+        radialTouchActive = false
+        radialTriggerFired = false
+        radialPressDetected = false
+
         if touchActive && modifierHeld {
             onMultiFingerLongPressEnd?()
         }

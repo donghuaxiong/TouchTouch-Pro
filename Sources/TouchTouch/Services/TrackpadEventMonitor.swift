@@ -94,6 +94,26 @@ final class TrackpadEventMonitor {
         multiTouchManager.pressThreshold = pressThreshold
     }
 
+    /// Configure radial menu gesture callbacks.
+    func setRadialCallbacks(
+        onRotation: ((Double) -> Void)?,
+        onFingerUp: (() -> Void)?,
+        onTrigger: (() -> Void)?,
+        triggerFingerCount: Int32 = 2,
+        triggerRequirePress: Bool = false
+    ) {
+        multiTouchManager.onRadialRotation = onRotation
+        multiTouchManager.onRadialFingerUp = onFingerUp
+        multiTouchManager.onRadialTrigger = onTrigger
+        multiTouchManager.radialTriggerFingerCount = triggerFingerCount
+        multiTouchManager.radialRequirePress = triggerRequirePress
+    }
+
+    /// Activate/deactivate radial mode on the underlying MultiTouchSupportManager.
+    func setRadialModeActive(_ active: Bool) {
+        multiTouchManager.radialModeActive = active
+    }
+
     func start() {
         guard globalMonitor == nil, localMonitor == nil, eventTap == nil else { return }
 

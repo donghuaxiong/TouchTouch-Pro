@@ -6,6 +6,7 @@ import SwiftUI
 enum SettingsTab: String, CaseIterable, Identifiable {
     case control = "控制方式"
     case gesture = "手势"
+    case radialMenu = "一触即达"
     case meeting = "会议模式"
     case sensitivity = "灵敏度"
     case feedback = "反馈"
@@ -18,6 +19,7 @@ enum SettingsTab: String, CaseIterable, Identifiable {
         switch self {
         case .control: return "gearshape.2"
         case .gesture: return "hand.tap.fill"
+        case .radialMenu: return "circle.grid.cross.fill"
         case .meeting: return "video.fill"
         case .sensitivity: return "slider.horizontal.3"
         case .feedback: return "waveform.path"
@@ -209,6 +211,7 @@ struct SettingsView: View {
                 switch selectedTab {
                 case .control:    controlContent
                 case .gesture:    gestureContent
+                case .radialMenu: radialMenuContent
                 case .meeting:    meetingContent
                 case .sensitivity: sensitivityContent
                 case .feedback:   feedbackContent
@@ -344,6 +347,301 @@ struct SettingsView: View {
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 20)
+    }
+
+    // MARK: - Radial Menu Tab (一触即达)
+
+    private var radialMenuContent: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack {
+                sectionHeader(title: "一触即达", subtitle: "多指触发，旋转选择，松手执行")
+                Spacer()
+                Toggle("", isOn: $appState.isRadialMenuEnabled)
+                    .toggleStyle(.switch)
+                    .labelsHidden()
+                    .scaleEffect(0.8)
+            }
+
+            if !appState.isRadialMenuEnabled {
+                radialDisabledHint
+            } else {
+
+            // 触发配置
+            VStack(alignment: .leading, spacing: 6) {
+                Text("触发方式")
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundStyle(.secondary)
+
+                // 手指数
+                HStack(spacing: 6) {
+                    ForEach([1, 2, 3, 4], id: \.self) { count in
+                        radialFingerCountButton(count: count)
+                    }
+                }
+
+                // 轻触/按压
+                HStack(spacing: 6) {
+                    radialTriggerModeButton(isPress: false, label: "轻触", icon: "hand.draw")
+                    radialTriggerModeButton(isPress: true, label: "按压", icon: "hand.point.up.left.fill")
+                }
+            }
+
+            Divider().opacity(0.2)
+
+            // 转盘项管理
+            VStack(alignment: .leading, spacing: 8) {
+                Text("转盘项目 (\(appState.radialMenuItems.count))")
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundStyle(.secondary)
+
+                if appState.radialMenuItems.isEmpty {
+                    HStack(spacing: 8) {
+                        Image(systemName: "circle.grid.cross")
+                            .foregroundStyle(.secondary.opacity(0.4))
+                        Text("点击下方按钮添加应用或系统操作")
+                            .font(.system(size: 12))
+                            .foregroundStyle(.secondary)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 16)
+                } else {
+                    ForEach(Array(appState.radialMenuItems.indices), id: \.self) { index in
+                        radialItemRow(index: index)
+                    }
+                }
+
+                HStack(spacing: 8) {
+                    Button {
+                        pickApp()
+                    } label: {
+                        HStack(spacing: 4) {
+                            Image(systemName: "plus.circle.fill")
+                            Text("添加应用")
+                        }
+                        .font(.system(size: 12, weight: .medium))
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.small)
+
+                    Menu {
+                        ForEach(SystemActionKind.allCases, id: \.self) { kind in
+                            Button {
+                                appState.radialMenuItems.append(.system(kind))
+                            } label: {
+                                Label(kind.displayName, systemImage: kind.iconName)
+                            }
+                        }
+                    } label: {
+                        HStack(spacing: 4) {
+                            Image(systemName: "plus.app.fill")
+                            Text("添加系统操作")
+                        }
+                        .font(.system(size: 12, weight: .medium))
+                    }
+                    .menuStyle(.borderlessButton)
+                    .controlSize(.small)
+                }
+            }
+
+            // 转盘预览
+            Divider().opacity(0.2)
+            VStack(alignment: .leading, spacing: 6) {
+                Text("预览")
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundStyle(.secondary)
+                radialPreview
+            }
+
+            } // end of else (isRadialMenuEnabled)
+        }
+    }
+
+    private var radialDisabledHint: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "circle.grid.cross")
+                .font(.system(size: 18))
+                .foregroundStyle(.secondary.opacity(0.4))
+            Text("一触即达已关闭，请开启上方开关")
+                .font(.system(size: 13))
+                .foregroundStyle(.secondary)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 24)
+    }
+
+    private func radialFingerCountButton(count: Int) -> some View {
+        let isSelected = appState.radialTriggerFingerCount == count
+        return Button {
+            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                appState.radialTriggerFingerCount = count
+            }
+        } label: {
+            Text("\(count) 指")
+                .font(.system(size: 12, weight: isSelected ? .bold : .medium))
+                .foregroundStyle(isSelected ? .white : .primary)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 7)
+                .background(
+                    RoundedRectangle(cornerRadius: 8, style: .continuous)
+                        .fill(isSelected ? Color.accentColor : Color.secondary.opacity(0.08))
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 8, style: .continuous)
+                        .strokeBorder(isSelected ? Color.accentColor : Color.secondary.opacity(0.2), lineWidth: 1)
+                )
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func radialTriggerModeButton(isPress: Bool, label: String, icon: String) -> some View {
+        let isSelected = appState.radialRequirePress == isPress
+        let color: Color = isPress ? .red : .green
+        return Button {
+            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                appState.radialRequirePress = isPress
+            }
+        } label: {
+            HStack(spacing: 5) {
+                Image(systemName: icon)
+                    .font(.system(size: 11, weight: .semibold))
+                Text(label)
+                    .font(.system(size: 12, weight: isSelected ? .bold : .medium))
+            }
+            .foregroundStyle(isSelected ? .white : .primary)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 7)
+            .background(
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .fill(isSelected ? color : color.opacity(0.10))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .strokeBorder(isSelected ? color : color.opacity(0.2), lineWidth: 1)
+            )
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func radialItemRow(index: Int) -> some View {
+        let item = appState.radialMenuItems[index]
+        return HStack(spacing: 10) {
+            iconForRadialItem(item)
+                .frame(width: 28, height: 28)
+
+            Text(item.name)
+                .font(.system(size: 13, weight: .medium))
+
+            Spacer()
+
+            // 上移
+            if index > 0 {
+                Button {
+                    appState.radialMenuItems.swapAt(index, index - 1)
+                } label: {
+                    Image(systemName: "chevron.up")
+                        .font(.system(size: 11, weight: .bold))
+                }
+                .buttonStyle(.plain)
+                .foregroundStyle(.secondary)
+            }
+            // 下移
+            if index < appState.radialMenuItems.count - 1 {
+                Button {
+                    appState.radialMenuItems.swapAt(index, index + 1)
+                } label: {
+                    Image(systemName: "chevron.down")
+                        .font(.system(size: 11, weight: .bold))
+                }
+                .buttonStyle(.plain)
+                .foregroundStyle(.secondary)
+            }
+            // 删除
+            Button {
+                appState.radialMenuItems.remove(at: index)
+            } label: {
+                Image(systemName: "xmark.circle.fill")
+                    .font(.system(size: 14))
+            }
+            .buttonStyle(.plain)
+            .foregroundStyle(.red.opacity(0.6))
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 8)
+        .background(
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .fill(Color.secondary.opacity(0.06))
+        )
+    }
+
+    @ViewBuilder
+    private func iconForRadialItem(_ item: RadialMenuItem) -> some View {
+        switch item.type {
+        case .systemAction:
+            if let iconName = item.iconSystemName {
+                Image(systemName: iconName)
+                    .font(.system(size: 16, weight: .medium))
+                    .foregroundStyle(Color.accentColor)
+                    .frame(width: 28, height: 28)
+                    .background(Color.accentColor.opacity(0.12), in: RoundedRectangle(cornerRadius: 6, style: .continuous))
+            }
+        case .app:
+            if let path = item.appBundlePath,
+               let icon = NSWorkspace.shared.icon(forFile: path) as NSImage? {
+                Image(nsImage: icon)
+                    .resizable()
+                    .frame(width: 28, height: 28)
+                    .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
+            } else {
+                Image(systemName: "app.fill")
+                    .font(.system(size: 16))
+                    .foregroundStyle(.secondary)
+            }
+        }
+    }
+
+    /// 简化版转盘预览
+    private var radialPreview: some View {
+        let items = appState.radialMenuItems
+        let count = items.count
+
+        return ZStack {
+            Circle()
+                .stroke(Color.secondary.opacity(0.2), lineWidth: 2)
+                .frame(width: 160, height: 160)
+
+            Circle()
+                .stroke(Color.secondary.opacity(0.15), lineWidth: 1)
+                .frame(width: 60, height: 60)
+
+            ForEach(Array(items.enumerated()), id: \.element.id) { index, item in
+                let angle = (Double(index) / Double(max(count, 1))) * 360 - 90
+                let radians = angle * .pi / 180
+                let radius: Double = 110
+
+                iconForRadialItem(item)
+                    .frame(width: 24, height: 24)
+                    .scaleEffect(0.8)
+                    .offset(x: cos(radians) * radius, y: sin(radians) * radius)
+            }
+        }
+        .frame(height: 180)
+        .frame(maxWidth: .infinity)
+    }
+
+    private func pickApp() {
+        let panel = NSOpenPanel()
+        panel.allowsMultipleSelection = true
+        panel.canChooseDirectories = false
+        panel.canChooseFiles = true
+        panel.allowedContentTypes = [.applicationBundle, .application]
+        panel.directoryURL = URL(fileURLWithPath: "/Applications")
+
+        if panel.runModal() == .OK {
+            for url in panel.urls {
+                let name = url.deletingPathExtension().lastPathComponent
+                appState.radialMenuItems.append(.app(name: name, bundlePath: url.path))
+            }
+        }
     }
 
     // MARK: - Meeting Tab

@@ -122,6 +122,24 @@ final class AppState: ObservableObject {
 
     @Published var isMeetingMode: Bool = false
 
+    // ── 一触即达（转盘菜单）──
+    @Published var isRadialMenuEnabled: Bool = false {
+        didSet { defaults.set(isRadialMenuEnabled, forKey: Keys.isRadialMenuEnabled) }
+    }
+    @Published var radialTriggerFingerCount: Int = 2 {
+        didSet { defaults.set(radialTriggerFingerCount, forKey: Keys.radialTriggerFingerCount) }
+    }
+    @Published var radialRequirePress: Bool = false {
+        didSet { defaults.set(radialRequirePress, forKey: Keys.radialRequirePress) }
+    }
+    @Published var radialMenuItems: [RadialMenuItem] = [] {
+        didSet { persistRadialMenuItems() }
+    }
+
+    private let radialMenuManager = RadialMenuManager()
+    private var radialCumulativeAngle: Double = 0
+    private var radialCurrentSelection: Int = 0
+
     private let defaults = UserDefaults.standard
     private let actionDispatcher = ActionDispatcher()
     private let hudManager = HUDManager()
@@ -162,7 +180,10 @@ final class AppState: ObservableObject {
             Keys.modifierFingerCount: 2,  // 默认双指触发
             Keys.requirePress: false,  // 默认轻触触发
             Keys.pressThreshold: 0.9,  // 默认按压阈值
-            Keys.isControlModeEnabled: true  // 默认启用控制方式
+            Keys.isControlModeEnabled: true,  // 默认启用控制方式
+            Keys.isRadialMenuEnabled: false,
+            Keys.radialTriggerFingerCount: 2,
+            Keys.radialRequirePress: false
         ])
 
         isEnabled = defaults.bool(forKey: Keys.isEnabled)
@@ -194,8 +215,17 @@ final class AppState: ObservableObject {
             pressThreshold = 0.9
         }
 
+        isRadialMenuEnabled = defaults.bool(forKey: Keys.isRadialMenuEnabled)
+        radialTriggerFingerCount = defaults.integer(forKey: Keys.radialTriggerFingerCount)
+        if radialTriggerFingerCount < 1 || radialTriggerFingerCount > 4 {
+            radialTriggerFingerCount = 2
+        }
+        radialRequirePress = defaults.bool(forKey: Keys.radialRequirePress)
+        radialMenuItems = Self.loadRadialMenuItems()
+
         refreshMonitoring()
         setupGestureCallbacks()
+        setupRadialCallbacks()
     }
 
     var controlStatusDescription: String {
@@ -379,6 +409,93 @@ final class AppState: ObservableObject {
         }
     }
 
+    // MARK: - Radial Menu (一触即达)
+
+    private func setupRadialCallbacks() {
+        eventMonitor.setRadialCallbacks(
+            onRotation: { [weak self] delta in
+                self?.handleRadialRotation(delta)
+            },
+            onFingerUp: { [weak self] in
+                self?.handleRadialFingerUp()
+            },
+            onTrigger: { [weak self] in
+                self?.handleRadialTrigger()
+            },
+            triggerFingerCount: Int32(radialTriggerFingerCount),
+            triggerRequirePress: radialRequirePress
+        )
+    }
+
+    /// 转盘触发：显示转盘，启用转盘模式
+    private func handleRadialTrigger() {
+        guard isEnabled, isRadialMenuEnabled, !radialMenuItems.isEmpty else { return }
+
+        radialCumulativeAngle = 0
+        radialCurrentSelection = 0
+        radialMenuManager.show(items: radialMenuItems, initialSelection: 0)
+        eventMonitor.setRadialModeActive(true)
+
+        if usesHaptics {
+            hapticManager.perform(intensity: hapticIntensity)
+        }
+    }
+
+    /// 手指旋转：更新选中项
+    private func handleRadialRotation(_ delta: Double) {
+        guard radialMenuManager.isVisible, !radialMenuItems.isEmpty else { return }
+
+        radialCumulativeAngle += delta
+        let anglePerSegment = 2 * .pi / Double(radialMenuItems.count)
+        let newIndex = ((Int(radialCumulativeAngle / anglePerSegment) % radialMenuItems.count) + radialMenuItems.count) % radialMenuItems.count
+
+        if newIndex != radialCurrentSelection {
+            radialCurrentSelection = newIndex
+            radialMenuManager.updateSelection(newIndex)
+
+            if usesHaptics {
+                hapticManager.perform(intensity: hapticIntensity * 0.5)
+            }
+        }
+    }
+
+    /// 松手：关闭转盘，执行选中项
+    private func handleRadialFingerUp() {
+        eventMonitor.setRadialModeActive(false)
+        guard let selectedItem = radialMenuManager.hide() else { return }
+
+        executeRadialItem(selectedItem)
+    }
+
+    /// 执行转盘选中项
+    private func executeRadialItem(_ item: RadialMenuItem) {
+        switch item.type {
+        case .app:
+            if let path = item.appBundlePath {
+                let url = URL(fileURLWithPath: path)
+                NSWorkspace.shared.openApplication(at: url, configuration: NSWorkspace.OpenConfiguration(), completionHandler: nil)
+            }
+        case .systemAction:
+            if let action = item.systemAction {
+                SystemActionExecutor.execute(action)
+            }
+        }
+
+        if usesHaptics {
+            hapticManager.perform(intensity: hapticIntensity * 1.2)
+        }
+    }
+
+    private func persistRadialMenuItems() {
+        guard let data = try? JSONEncoder().encode(radialMenuItems) else { return }
+        defaults.set(data, forKey: Keys.radialMenuItems)
+    }
+
+    private static func loadRadialMenuItems() -> [RadialMenuItem] {
+        guard let data = UserDefaults.standard.data(forKey: Keys.radialMenuItems) else { return [] }
+        return (try? JSONDecoder().decode([RadialMenuItem].self, from: data)) ?? []
+    }
+
     private enum Keys {
         static let isEnabled = "isEnabled"
         static let brightnessStep = "brightnessStep"
@@ -401,5 +518,9 @@ final class AppState: ObservableObject {
         static let requirePress = "requirePress"  // 是否需要按压触发
         static let pressThreshold = "pressThreshold"  // 按压阈值
         static let isControlModeEnabled = "isControlModeEnabled"  // 是否启用控制方式
+        static let isRadialMenuEnabled = "isRadialMenuEnabled"
+        static let radialTriggerFingerCount = "radialTriggerFingerCount"
+        static let radialRequirePress = "radialRequirePress"
+        static let radialMenuItems = "radialMenuItems"
     }
 }
