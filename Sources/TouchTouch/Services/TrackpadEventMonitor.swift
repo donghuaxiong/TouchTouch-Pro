@@ -364,7 +364,7 @@ final class TrackpadEventMonitor {
                 .takeUnretainedValue()
 
             if type == .tapDisabledByTimeout || type == .tapDisabledByUserInput {
-                Task { @MainActor in
+                DispatchQueue.main.async {
                     monitor.reenableEventTap()
                 }
                 return Unmanaged.passUnretained(event)
@@ -373,7 +373,7 @@ final class TrackpadEventMonitor {
             guard type == .scrollWheel else { return Unmanaged.passUnretained(event) }
 
             let copiedEvent = event.copy() ?? event
-            Task { @MainActor in
+            DispatchQueue.main.async {
                 _ = monitor.handle(copiedEvent)
             }
             if monitor.eventTapCanConsume, monitor.shouldConsume(event) {
@@ -425,14 +425,12 @@ final class TrackpadEventMonitor {
     private func startEventTapHealthCheck() {
         eventTapHealthTimer?.invalidate()
         eventTapHealthTimer = Timer.scheduledTimer(withTimeInterval: 4, repeats: true) { [weak self] _ in
-            Task { @MainActor in
+            DispatchQueue.main.async {
                 guard let self else { return }
-                if let eventTap = self.eventTap, self.eventTapCanConsume {
+                // Only re-enable if disabled, don't recreate from scratch
+                if let eventTap = self.eventTap {
                     CGEvent.tapEnable(tap: eventTap, enable: true)
-                    return
                 }
-                self.stopEventTap()
-                self.startEventTap()
             }
         }
     }

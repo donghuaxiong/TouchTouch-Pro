@@ -261,7 +261,7 @@ final class MultiTouchSupportManager {
     private nonisolated static let contactFrameCallback: MTContactFrameCallback = {
         _, fingers, fingerCount, _, _ in
         if fingerCount == 0 {
-            Task { @MainActor in
+            DispatchQueue.main.async {
                 MultiTouchSupportManager.activeMonitor?.updateTouchEnd()
             }
             return 0
@@ -270,7 +270,7 @@ final class MultiTouchSupportManager {
             return 0
         }
         let maxSize = MultiTouchSupportManager.maxFingerSize(fingers: fingers, count: fingerCount)
-        Task { @MainActor in
+        DispatchQueue.main.async {
             MultiTouchSupportManager.activeMonitor?.update(averageX: avgX, fingerCount: fingerCount, maxSize: maxSize)
         }
         return 0
