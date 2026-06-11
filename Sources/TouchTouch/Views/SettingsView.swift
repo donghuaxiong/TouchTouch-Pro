@@ -219,7 +219,9 @@ struct SettingsView: View {
                 case .general:    generalContent
                 }
             }
-            .padding(16)
+            .padding(.horizontal, 16)
+            .padding(.top, 16)
+            .padding(.bottom, 32)
         }
     }
 
