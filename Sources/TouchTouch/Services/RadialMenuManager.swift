@@ -48,7 +48,7 @@ final class RadialMenuManager {
 
     private func makePanel() -> NSPanel {
         let panel = NSPanel(
-            contentRect: NSRect(x: 0, y: 0, width: 400, height: 400),
+            contentRect: NSRect(x: 0, y: 0, width: 360, height: 360),
             styleMask: [.borderless, .nonactivatingPanel],
             backing: .buffered,
             defer: false

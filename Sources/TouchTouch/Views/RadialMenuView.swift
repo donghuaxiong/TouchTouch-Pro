@@ -15,71 +15,75 @@ final class RadialMenuState: ObservableObject {
 struct RadialMenuView: View {
     @ObservedObject var state: RadialMenuState
 
-    private let outerRadius: CGFloat = 160
-    private let innerRadius: CGFloat = 70
-    private let iconSize: CGFloat = 32
+    private let discSize: CGFloat = 320
+    private let ringRadius: CGFloat = 115   // 图标放置半径
+    private let centerRadius: CGFloat = 52  // 中心圆半径
+    private let iconSize: CGFloat = 36
 
     var body: some View {
         ZStack {
-            // 半透明背景遮罩
-            Color.black.opacity(0.15)
-                .ignoresSafeArea()
+            // 深色半透明圆盘背景
+            Circle()
+                .fill(Color.black.opacity(0.72))
+                .frame(width: discSize, height: discSize)
+                .shadow(color: .black.opacity(0.5), radius: 30, x: 0, y: 8)
 
-            // 转盘主体
-            radialRing
-                .frame(width: outerRadius * 2, height: outerRadius * 2)
-        }
-    }
+            // 圆环轨道（细线）
+            Circle()
+                .stroke(Color.white.opacity(0.10), lineWidth: 1)
+                .frame(width: ringRadius * 2, height: ringRadius * 2)
 
-    // MARK: - 圆环
+            // 选中扇区高亮弧
+            selectedArc
 
-    private var radialRing: some View {
-        ZStack {
-            // 绘制每个扇形格子
+            // 图标环绕
             ForEach(Array(state.items.enumerated()), id: \.element.id) { index, item in
-                segmentView(for: item, index: index)
+                iconCell(for: item, index: index)
             }
 
-            // 中心圆（显示选中项名称）
+            // 中心圆
             centerCircle
         }
-    }
-
-    // MARK: - 单个扇形格子
-
-    private func segmentView(for item: RadialMenuItem, index: Int) -> some View {
-        let count = max(state.items.count, 1)
-        let anglePerSegment = 360.0 / Double(count)
-        let midAngle = (Double(index) + 0.5) * anglePerSegment - 90  // 从顶部开始
-        let isSelected = index == state.selectedIndex
-
-        let midRadius = (outerRadius + innerRadius) / 2
-        let radians = midAngle * .pi / 180
-        let x = cos(radians) * Double(midRadius)
-        let y = sin(radians) * Double(midRadius)
-
-        return ZStack {
-            // 选中高亮背景
-            if isSelected {
-                SegmentShape(
-                    innerRadius: innerRadius + 2,
-                    outerRadius: outerRadius - 2,
-                    startAngle: Angle(degrees: Double(index) * (360.0 / Double(count)) - 90 + 1),
-                    endAngle: Angle(degrees: Double(index) * (360.0 / Double(count)) - 90 + (360.0 / Double(count)) - 1)
-                )
-                .fill(Color.accentColor.opacity(0.30))
-            }
-
-            // 图标
-            iconView(for: item)
-                .scaleEffect(isSelected ? 1.15 : 1.0)
-                .shadow(color: isSelected ? Color.accentColor.opacity(0.5) : .clear, radius: 4)
-        }
-        .offset(x: CGFloat(x), y: CGFloat(y))
+        .frame(width: discSize, height: discSize)
         .animation(.easeOut(duration: 0.12), value: state.selectedIndex)
     }
 
-    // MARK: - 图标
+    // MARK: - 选中扇区高亮弧
+
+    private var selectedArc: some View {
+        let count = max(state.items.count, 1)
+        let anglePerSegment = 360.0 / Double(count)
+        let startAngle = Double(state.selectedIndex) * anglePerSegment - 90 + 2
+        let endAngle = startAngle + anglePerSegment - 4
+
+        return ArcShape(
+            radius: ringRadius,
+            startAngle: Angle(degrees: startAngle),
+            endAngle: Angle(degrees: endAngle)
+        )
+        .stroke(Color.accentColor.opacity(0.6), lineWidth: iconSize + 12)
+        .frame(width: ringRadius * 2, height: ringRadius * 2)
+        .blur(radius: 2)
+    }
+
+    // MARK: - 单个图标格子
+
+    private func iconCell(for item: RadialMenuItem, index: Int) -> some View {
+        let count = max(state.items.count, 1)
+        let anglePerSegment = 360.0 / Double(count)
+        let midAngle = (Double(index) + 0.5) * anglePerSegment - 90
+        let isSelected = index == state.selectedIndex
+        let radians = midAngle * .pi / 180
+        let x = cos(radians) * Double(ringRadius)
+        let y = sin(radians) * Double(ringRadius)
+
+        return iconView(for: item)
+            .scaleEffect(isSelected ? 1.2 : 0.9)
+            .opacity(isSelected ? 1.0 : 0.7)
+            .offset(x: CGFloat(x), y: CGFloat(y))
+    }
+
+    // MARK: - 图标渲染
 
     @ViewBuilder
     private func iconView(for item: RadialMenuItem) -> some View {
@@ -87,7 +91,7 @@ struct RadialMenuView: View {
         case .systemAction:
             if let iconName = item.iconSystemName {
                 Image(systemName: iconName)
-                    .font(.system(size: 20, weight: .medium))
+                    .font(.system(size: 18, weight: .medium))
                     .foregroundStyle(.white)
                     .frame(width: iconSize, height: iconSize)
             }
@@ -97,10 +101,10 @@ struct RadialMenuView: View {
                 Image(nsImage: icon)
                     .resizable()
                     .frame(width: iconSize, height: iconSize)
-                    .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
+                    .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
             } else {
                 Image(systemName: "app.fill")
-                    .font(.system(size: 20, weight: .medium))
+                    .font(.system(size: 18, weight: .medium))
                     .foregroundStyle(.white)
                     .frame(width: iconSize, height: iconSize)
             }
@@ -110,28 +114,57 @@ struct RadialMenuView: View {
     // MARK: - 中心圆
 
     private var centerCircle: some View {
-        VStack(spacing: 4) {
+        ZStack {
+            // 中心背景
+            Circle()
+                .fill(Color.black.opacity(0.85))
+                .frame(width: centerRadius * 2, height: centerRadius * 2)
+
+            Circle()
+                .stroke(Color.white.opacity(0.12), lineWidth: 1)
+                .frame(width: centerRadius * 2, height: centerRadius * 2)
+
             if state.selectedIndex < state.items.count {
                 let item = state.items[state.selectedIndex]
-                iconView(for: item)
-                    .scaleEffect(1.3)
-                Text(item.name)
-                    .font(.system(size: 11, weight: .semibold))
-                    .foregroundStyle(.white)
-                    .lineLimit(1)
-                    .fixedSize()
+                VStack(spacing: 3) {
+                    iconView(for: item)
+                        .scaleEffect(0.85)
+                    Text(item.name)
+                        .font(.system(size: 9, weight: .semibold))
+                        .foregroundStyle(.white.opacity(0.9))
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.7)
+                        .padding(.horizontal, 4)
+                }
+                .frame(width: centerRadius * 2 - 8, height: centerRadius * 2 - 8)
+                .clipShape(Circle())
             }
         }
-        .frame(width: innerRadius * 2 - 16, height: innerRadius * 2 - 16)
-        .background(
-            Circle()
-                .fill(.ultraThinMaterial)
-                .overlay(Circle().stroke(Color.white.opacity(0.15), lineWidth: 1))
-        )
     }
 }
 
-// MARK: - Segment Shape
+// MARK: - Arc Shape (选中高亮弧)
+
+struct ArcShape: Shape {
+    let radius: CGFloat
+    let startAngle: Angle
+    let endAngle: Angle
+
+    func path(in rect: CGRect) -> Path {
+        let center = CGPoint(x: rect.midX, y: rect.midY)
+        var path = Path()
+        path.addArc(
+            center: center,
+            radius: radius,
+            startAngle: startAngle,
+            endAngle: endAngle,
+            clockwise: false
+        )
+        return path
+    }
+}
+
+// MARK: - Segment Shape (保留备用)
 
 struct SegmentShape: Shape {
     let innerRadius: CGFloat
@@ -141,34 +174,14 @@ struct SegmentShape: Shape {
 
     func path(in rect: CGRect) -> Path {
         let center = CGPoint(x: rect.midX, y: rect.midY)
-
         var path = Path()
-
-        // 外弧（顺时针）
-        path.addArc(
-            center: center,
-            radius: outerRadius,
-            startAngle: startAngle,
-            endAngle: endAngle,
-            clockwise: false
-        )
-
-        // 连线到内弧
+        path.addArc(center: center, radius: outerRadius, startAngle: startAngle, endAngle: endAngle, clockwise: false)
         let innerEnd = CGPoint(
             x: center.x + innerRadius * cos(CGFloat(endAngle.radians)),
             y: center.y + innerRadius * sin(CGFloat(endAngle.radians))
         )
         path.addLine(to: innerEnd)
-
-        // 内弧（逆时针）
-        path.addArc(
-            center: center,
-            radius: innerRadius,
-            startAngle: endAngle,
-            endAngle: startAngle,
-            clockwise: true
-        )
-
+        path.addArc(center: center, radius: innerRadius, startAngle: endAngle, endAngle: startAngle, clockwise: true)
         path.closeSubpath()
         return path
     }
