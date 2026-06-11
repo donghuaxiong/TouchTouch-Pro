@@ -57,7 +57,7 @@ struct SettingsView: View {
             }
         }
         .environment(\.colorScheme, appState.usesDarkHUDBackground ? .dark : .light)
-        .frame(width: 580, height: 540)
+        .frame(width: 580, height: 620)
     }
 
     // MARK: - Background
@@ -206,7 +206,7 @@ struct SettingsView: View {
 
     @ViewBuilder
     private var content: some View {
-        ScrollView(.vertical) {
+        ScrollView(.vertical, showsIndicators: false) {
             VStack(alignment: .leading, spacing: 16) {
                 switch selectedTab {
                 case .control:    controlContent
@@ -618,24 +618,24 @@ struct SettingsView: View {
         return ZStack {
             Circle()
                 .stroke(Color.secondary.opacity(0.2), lineWidth: 2)
-                .frame(width: 160, height: 160)
+                .frame(width: 120, height: 120)
 
             Circle()
                 .stroke(Color.secondary.opacity(0.15), lineWidth: 1)
-                .frame(width: 60, height: 60)
+                .frame(width: 44, height: 44)
 
             ForEach(Array(items.enumerated()), id: \.element.id) { index, item in
                 let angle = (Double(index) / Double(max(count, 1))) * 360 - 90
                 let radians = angle * .pi / 180
-                let radius: Double = 110
+                let radius: Double = 82
 
                 iconForRadialItem(item)
-                    .frame(width: 24, height: 24)
-                    .scaleEffect(0.8)
+                    .frame(width: 20, height: 20)
+                    .scaleEffect(0.75)
                     .offset(x: cos(radians) * radius, y: sin(radians) * radius)
             }
         }
-        .frame(height: 180)
+        .frame(height: 135)
         .frame(maxWidth: .infinity)
     }
 
