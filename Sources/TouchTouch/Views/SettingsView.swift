@@ -393,8 +393,8 @@ struct SettingsView: View {
                         title: "按压力度",
                         value: $appState.radialPressThreshold,
                         range: 0.5...1.1,
-                        suffix: "",
-                        scale: 1
+                        suffix: "%",
+                        scale: 100
                     )
                     Text("触控板按压多大力度才触发转盘")
                         .font(.system(size: 10))
