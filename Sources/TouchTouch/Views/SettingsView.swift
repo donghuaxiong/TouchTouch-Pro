@@ -393,8 +393,9 @@ struct SettingsView: View {
                         title: "按压力度",
                         value: $appState.radialPressThreshold,
                         range: 0.5...1.1,
-                        suffix: "%",
-                        scale: 100
+                        suffix: "",
+                        scale: 1,
+                        decimals: 1
                     )
                     Text("触控板按压多大力度才触发转盘")
                         .font(.system(size: 10))
@@ -1357,6 +1358,8 @@ private struct DesignedSlider: View {
     let range: ClosedRange<Double>
     let suffix: String
     let scale: Double
+    /// 小数位数（nil=整数显示，默认）
+    var decimals: Int? = nil
 
     @GestureState private var isDragging = false
 
@@ -1424,7 +1427,10 @@ private struct DesignedSlider: View {
     }
 
     private var displayValue: String {
-        "\(Int((value * scale).rounded()))\(suffix)"
+        if let decimals {
+            return String(format: "%.\(decimals)f%@", value, suffix)
+        }
+        return "\(Int((value * scale).rounded()))\(suffix)"
     }
 }
 
