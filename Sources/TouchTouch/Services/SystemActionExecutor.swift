@@ -107,8 +107,8 @@ enum SystemActionExecutor {
 
     /// Bluetooth toggle
     private static func bluetoothToggle() {
-        // Use blueutil if available, otherwise AppleScript
         DispatchQueue.global(qos: .userInitiated).async {
+            // 方式1: blueutil（最可靠）
             let blueutil = ["/opt/homebrew/bin/blueutil", "/usr/local/bin/blueutil"]
                 .first { FileManager.default.isExecutableFile(atPath: $0) }
 
@@ -122,14 +122,46 @@ enum SystemActionExecutor {
                     URL(fileURLWithPath: blueutil),
                     arguments: ["--power", isOn ? "0" : "1"]
                 )
-            } else {
-                // Fallback: AppleScript through System Settings
-                runAppleScript("""
-                tell application "System Settings"
-                    reveal anchor "Bluetooth" of pane id "com.apple.BluetoothSettings"
-                end tell
-                """)
+                return
             }
+
+            // 方式2: 通过 Control Center 菜单栏切换（支持中英文）
+            // 尝试多种名称和UI元素类型
+            runAppleScript("""
+            tell application "System Events"
+                tell process "ControlCenter"
+                    set clicked to false
+                    -- 尝试英文名
+                    if not clicked then
+                        try
+                            click menu bar item "Bluetooth" of menu bar 1
+                            set clicked to true
+                        end try
+                    end if
+                    -- 尝试中文名
+                    if not clicked then
+                        try
+                            click menu bar item "蓝牙" of menu bar 1
+                            set clicked to true
+                        end try
+                    end if
+                    if clicked then
+                        delay 0.3
+                        tell window 1
+                            -- 尝试 checkbox
+                            try
+                                click checkbox 1
+                            on error
+                                -- 尝试 button
+                                try
+                                    click button 1
+                                end try
+                            end try
+                        end tell
+                    end if
+                end tell
+            end tell
+            """)
         }
     }
 
