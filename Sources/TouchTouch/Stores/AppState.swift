@@ -127,18 +127,30 @@ final class AppState: ObservableObject {
         didSet { defaults.set(isRadialMenuEnabled, forKey: Keys.isRadialMenuEnabled) }
     }
     @Published var radialTriggerFingerCount: Int = 2 {
-        didSet { defaults.set(radialTriggerFingerCount, forKey: Keys.radialTriggerFingerCount) }
+        didSet {
+            defaults.set(radialTriggerFingerCount, forKey: Keys.radialTriggerFingerCount)
+            setupRadialCallbacks()
+        }
     }
     @Published var radialRequirePress: Bool = false {
-        didSet { defaults.set(radialRequirePress, forKey: Keys.radialRequirePress) }
+        didSet {
+            defaults.set(radialRequirePress, forKey: Keys.radialRequirePress)
+            setupRadialCallbacks()
+        }
     }
     /// 转盘旋转灵敏度（1.0~15.0，默认 5.0）
     @Published var radialRotationSensitivity: Double = 5.0 {
-        didSet { defaults.set(radialRotationSensitivity, forKey: Keys.radialRotationSensitivity) }
+        didSet {
+            defaults.set(radialRotationSensitivity, forKey: Keys.radialRotationSensitivity)
+            setupRadialCallbacks()
+        }
     }
     /// 转盘独立按压力度阈值（0.5~1.1，默认 0.9）
     @Published var radialPressThreshold: Double = 0.9 {
-        didSet { defaults.set(radialPressThreshold, forKey: Keys.radialPressThreshold) }
+        didSet {
+            defaults.set(radialPressThreshold, forKey: Keys.radialPressThreshold)
+            setupRadialCallbacks()
+        }
     }
     @Published var radialMenuItems: [RadialMenuItem] = [] {
         didSet { persistRadialMenuItems() }
