@@ -40,10 +40,43 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if let button = item.button {
             button.image = NSImage(systemSymbolName: "rectangle.and.hand.point.up.left",
                                    accessibilityDescription: "TouchTouch Pro")
-            button.action = #selector(toggleSettingsWindow)
+            button.action = #selector(handleStatusItemClick)
             button.target = self
+            button.sendAction(on: [.leftMouseUp, .rightMouseUp])
         }
         statusItem = item
+    }
+
+    // MARK: - Status Bar Menu
+
+    @objc private func handleStatusItemClick() {
+        guard let event = NSApp.currentEvent else { return }
+        if event.type == .rightMouseUp {
+            showStatusItemMenu()
+        } else {
+            toggleSettingsWindow()
+        }
+    }
+
+    private func showStatusItemMenu() {
+        let menu = NSMenu()
+        let settingsItem = NSMenuItem(title: "设置", action: #selector(toggleSettingsWindow), keyEquivalent: "")
+        settingsItem.target = self
+        menu.addItem(settingsItem)
+        menu.addItem(.separator())
+        let quitItem = NSMenuItem(title: "退出 TouchTouch", action: #selector(quitApp), keyEquivalent: "q")
+        quitItem.target = self
+        menu.addItem(quitItem)
+        statusItem?.menu = menu
+        statusItem?.button?.performClick(nil)
+        // 菜单关闭后恢复 action（menu 设为 nil）
+        DispatchQueue.main.async {
+            self.statusItem?.menu = nil
+        }
+    }
+
+    @objc private func quitApp() {
+        NSApp.terminate(nil)
     }
 
     // MARK: - Settings Window
