@@ -6,7 +6,7 @@ import SwiftUI
 enum SettingsTab: String, CaseIterable, Identifiable {
     case control = "控制方式"
     case gesture = "手势"
-    case radialMenu = "一触即达"
+    case radialMenu = "一触\n即达"
     case meeting = "会议模式"
     case sensitivity = "灵敏度"
     case feedback = "反馈"
