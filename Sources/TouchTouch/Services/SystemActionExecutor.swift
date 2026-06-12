@@ -69,19 +69,33 @@ enum SystemActionExecutor {
         }
     }
 
-    /// Sleep
+    /// Sleep: use pmset sleepnow
     private static func sleep() {
-        runAppleScript("tell application \"System Events\" to sleep")
+        DispatchQueue.global(qos: .userInitiated).async {
+            _ = ProcessRunner.run(
+                URL(fileURLWithPath: "/usr/bin/pmset"),
+                arguments: ["sleepnow"]
+            )
+        }
     }
 
-    /// Notification Center: toggle via shortcut (Ctrl+Option+N on some setups, or use menu bar click)
+    /// Notification Center: click menu bar clock to open
     private static func notificationCenter() {
-        // Use Control key + click on menu bar date/time, or try Fn+N
-        // Most reliable: click the Control Center icon via AppleScript
+        // 中英文系统回退
         runAppleScript("""
         tell application "System Events"
-            tell application process "ControlCenter"
-                click menu bar item "Control Center" of menu bar 1
+            tell process "ControlCenter"
+                set clicked to false
+                try
+                    click menu bar item "Control Center" of menu bar 1
+                    set clicked to true
+                end try
+                if not clicked then
+                    try
+                        click menu bar item "控制中心" of menu bar 1
+                        set clicked to true
+                    end try
+                end if
             end tell
         end tell
         """)
@@ -89,18 +103,37 @@ enum SystemActionExecutor {
 
     // MARK: - Network Toggles
 
-    /// Wi-Fi toggle
+    /// Wi-Fi toggle: dynamically detect WiFi interface
     private static func wifiToggle() {
         DispatchQueue.global(qos: .userInitiated).async {
+            // 动态检测 WiFi 接口名称（默认 en0）
+            let portResult = ProcessRunner.run(
+                URL(fileURLWithPath: "/usr/sbin/networksetup"),
+                arguments: ["-listallhardwareports"]
+            )
+            var wifiDevice = "en0"
+            let lines = portResult.output.components(separatedBy: "\n")
+            for i in 0..<lines.count {
+                if lines[i].contains("Wi-Fi") || lines[i].contains("AirPort") {
+                    if i + 1 < lines.count {
+                        let deviceLine = lines[i + 1]
+                        if let range = deviceLine.range(of: "Device: ") {
+                            wifiDevice = String(deviceLine[range.upperBound...]).trimmingCharacters(in: .whitespaces)
+                        }
+                    }
+                    break
+                }
+            }
+
             let statusResult = ProcessRunner.run(
                 URL(fileURLWithPath: "/usr/sbin/networksetup"),
-                arguments: ["-getairportpower", "en0"]
+                arguments: ["-getairportpower", wifiDevice]
             )
             let isOn = statusResult.output.contains("On")
             let newState = isOn ? "off" : "on"
             _ = ProcessRunner.run(
                 URL(fileURLWithPath: "/usr/sbin/networksetup"),
-                arguments: ["-setairportpower", "en0", newState]
+                arguments: ["-setairportpower", wifiDevice, newState]
             )
         }
     }
@@ -169,13 +202,35 @@ enum SystemActionExecutor {
 
     /// Do Not Disturb toggle
     private static func doNotDisturb() {
-        // Toggle Focus via shortcut (macOS Ventura+ uses Control Center)
+        // 中英文系统回退：点击 Control Center → 点击 Focus/专注
         runAppleScript("""
         tell application "System Events"
-            tell application process "ControlCenter"
-                click menu bar item "Control Center" of menu bar 1
-                delay 0.3
-                click button "Focus" of window "Control Center"
+            tell process "ControlCenter"
+                set opened to false
+                try
+                    click menu bar item "Control Center" of menu bar 1
+                    set opened to true
+                end try
+                if not opened then
+                    try
+                        click menu bar item "控制中心" of menu bar 1
+                        set opened to true
+                    end try
+                end if
+                if opened then
+                    delay 0.4
+                    tell window 1
+                        -- 尝试英文 Focus
+                        try
+                            click button "Focus"
+                        on error
+                            -- 尝试中文 专注
+                            try
+                                click button "专注"
+                            end try
+                        end try
+                    end tell
+                end if
             end tell
         end tell
         """)
