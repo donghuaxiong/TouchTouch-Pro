@@ -43,33 +43,67 @@ enum SystemActionExecutor {
 
     /// Lock screen: Ctrl + Cmd + Q
     private static func lockScreen() {
-        sendShortcut(keyCode: 12, flags: [.maskCommand, .maskControl]) // Q = 12
+        sendShortcut(keyCode: 12, flags: [.maskCommand, .maskControl])
     }
 
     /// Screenshot: Cmd + Shift + 3
     private static func screenshot() {
-        sendShortcut(keyCode: 20, flags: [.maskCommand, .maskShift]) // 3 = 20
+        sendShortcut(keyCode: 20, flags: [.maskCommand, .maskShift])
     }
 
     /// Spotlight: Cmd + Space
     private static func spotlight() {
-        sendShortcut(keyCode: 49, flags: [.maskCommand]) // Space = 49
+        sendShortcut(keyCode: 49, flags: [.maskCommand])
     }
 
-    // MARK: - AppleScript
+    // MARK: - osascript (同步执行，比 NSAppleScript async 更可靠)
 
-    private static func runAppleScript(_ source: String) {
-        DispatchQueue.global(qos: .userInitiated).async {
-            let script = NSAppleScript(source: source)
-            var error: NSDictionary?
-            script?.executeAndReturnError(&error)
-            if let error {
-                print("[SystemActionExecutor] AppleScript error: \(error)")
-            }
+    @discardableResult
+    private static func runOSAScript(_ source: String) -> String {
+        let result = ProcessRunner.run(
+            URL(fileURLWithPath: "/usr/bin/osascript"),
+            arguments: ["-e", source]
+        )
+        if result.exitCode != 0 {
+            print("[SystemActionExecutor] osascript error: \(result.output)")
         }
+        return result.output
     }
 
-    /// Sleep: use pmset sleepnow
+    /// 点击 Control Center 菜单栏项（通过 description 匹配，兼容中英文）
+    /// macOS 新版本的 menu bar item name 全部为 missing value，
+    /// 只有 description 属性包含真实名称
+    @discardableResult
+    private static func clickControlCenterMenuBarItem(matching keywords: [String]) -> Bool {
+        let keywordsArray = keywords.map { "\"\($0)\"" }.joined(separator: ", ")
+        let script = """
+        tell application "System Events"
+            tell process "ControlCenter"
+                set barItems to every menu bar item of menu bar 1
+                set cnt to count of barItems
+                set keywords to {\(keywordsArray)}
+                repeat with i from 1 to cnt
+                    try
+                        set d to description of (item i of barItems)
+                        repeat with kw in keywords
+                            if d contains kw then
+                                click item i of barItems
+                                return "ok"
+                            end if
+                        end repeat
+                    end try
+                end repeat
+                return "not_found"
+            end tell
+        end tell
+        """
+        let output = runOSAScript(script).trimmingCharacters(in: .whitespacesAndNewlines)
+        return output == "ok"
+    }
+
+    // MARK: - System Operations
+
+    /// Sleep: pmset sleepnow
     private static func sleep() {
         DispatchQueue.global(qos: .userInitiated).async {
             _ = ProcessRunner.run(
@@ -79,34 +113,18 @@ enum SystemActionExecutor {
         }
     }
 
-    /// Notification Center: click menu bar clock to open
+    /// Notification Center: 打开控制中心
     private static func notificationCenter() {
-        // 中英文系统回退
-        runAppleScript("""
-        tell application "System Events"
-            tell process "ControlCenter"
-                set clicked to false
-                try
-                    click menu bar item "Control Center" of menu bar 1
-                    set clicked to true
-                end try
-                if not clicked then
-                    try
-                        click menu bar item "控制中心" of menu bar 1
-                        set clicked to true
-                    end try
-                end if
-            end tell
-        end tell
-        """)
+        DispatchQueue.global(qos: .userInitiated).async {
+            _ = clickControlCenterMenuBarItem(matching: ["控制中心", "Control Center"])
+        }
     }
 
     // MARK: - Network Toggles
 
-    /// Wi-Fi toggle: dynamically detect WiFi interface
+    /// Wi-Fi toggle: networksetup 命令（动态检测接口名）
     private static func wifiToggle() {
         DispatchQueue.global(qos: .userInitiated).async {
-            // 动态检测 WiFi 接口名称（默认 en0）
             let portResult = ProcessRunner.run(
                 URL(fileURLWithPath: "/usr/sbin/networksetup"),
                 arguments: ["-listallhardwareports"]
@@ -138,10 +156,10 @@ enum SystemActionExecutor {
         }
     }
 
-    /// Bluetooth toggle
+    /// Bluetooth toggle: blueutil 优先，Control Center 回退
     private static func bluetoothToggle() {
         DispatchQueue.global(qos: .userInitiated).async {
-            // 方式1: blueutil（最可靠）
+            // 方式1: blueutil
             let blueutil = ["/opt/homebrew/bin/blueutil", "/usr/local/bin/blueutil"]
                 .first { FileManager.default.isExecutableFile(atPath: $0) }
 
@@ -158,92 +176,94 @@ enum SystemActionExecutor {
                 return
             }
 
-            // 方式2: 通过 Control Center 菜单栏切换（支持中英文）
-            // 尝试多种名称和UI元素类型
-            runAppleScript("""
+            // 方式2: Control Center → 蓝牙面板 → group 1 checkbox 1
+            // 关键：menu bar item 必须通过 description 定位（name 为 missing value）
+            // 关键：checkbox 嵌套在 group 内，必须 tell group 1
+            let script = """
             tell application "System Events"
                 tell process "ControlCenter"
+                    set barItems to every menu bar item of menu bar 1
+                    set cnt to count of barItems
                     set clicked to false
-                    -- 尝试英文名
-                    if not clicked then
+                    repeat with i from 1 to cnt
                         try
-                            click menu bar item "Bluetooth" of menu bar 1
-                            set clicked to true
+                            set d to description of (item i of barItems)
+                            if d is "蓝牙" or d is "Bluetooth" then
+                                click item i of barItems
+                                set clicked to true
+                                exit repeat
+                            end if
                         end try
-                    end if
-                    -- 尝试中文名
-                    if not clicked then
-                        try
-                            click menu bar item "蓝牙" of menu bar 1
-                            set clicked to true
-                        end try
-                    end if
+                    end repeat
                     if clicked then
                         delay 0.3
                         tell window 1
-                            -- 尝试 checkbox
-                            try
+                            tell group 1
                                 click checkbox 1
-                            on error
-                                -- 尝试 button
-                                try
-                                    click button 1
-                                end try
-                            end try
+                            end tell
                         end tell
                     end if
                 end tell
             end tell
-            """)
+            """
+            runOSAScript(script)
         }
     }
 
     // MARK: - Focus & Appearance
 
-    /// Do Not Disturb toggle
+    /// Do Not Disturb toggle: 打开控制中心 → 定位 Focus checkbox
+    /// Control Center group 1 内的 checkbox 按位置排列：
+    /// cb1=WiFi(宽), cb2=Bluetooth(宽), cb3=AirDrop(宽),
+    /// cb4=Focus(64x64小方块), cb5=AirPlay(64x64小方块)
     private static func doNotDisturb() {
-        // 中英文系统回退：点击 Control Center → 点击 Focus/专注
-        runAppleScript("""
-        tell application "System Events"
-            tell process "ControlCenter"
-                set opened to false
-                try
-                    click menu bar item "Control Center" of menu bar 1
-                    set opened to true
-                end try
-                if not opened then
-                    try
-                        click menu bar item "控制中心" of menu bar 1
-                        set opened to true
-                    end try
-                end if
-                if opened then
-                    delay 0.4
-                    tell window 1
-                        -- 尝试英文 Focus
+        DispatchQueue.global(qos: .userInitiated).async {
+            // 必须在单个 osascript 调用中完成：打开CC + 点击Focus
+            // 否则 CC 面板会在两步之间自动关闭
+            let script = """
+            tell application "System Events"
+                tell process "ControlCenter"
+                    set barItems to every menu bar item of menu bar 1
+                    set cnt to count of barItems
+                    set opened to false
+                    repeat with i from 1 to cnt
                         try
-                            click button "Focus"
-                        on error
-                            -- 尝试中文 专注
-                            try
-                                click button "专注"
-                            end try
+                            set d to description of (item i of barItems)
+                            if d contains "控制中心" or d contains "Control Center" then
+                                click item i of barItems
+                                set opened to true
+                                exit repeat
+                            end if
                         end try
+                    end repeat
+                    if not opened then return "cc_not_found"
+                    delay 0.5
+                    tell window 1
+                        tell group 1
+                            set cbs to every checkbox
+                            repeat with cb in cbs
+                                try
+                                    set sz to size of cb
+                                    if (item 1 of sz) is 64 and (item 2 of sz) is 64 then
+                                        click cb
+                                        return "ok"
+                                    end if
+                                end try
+                            end repeat
+                        end tell
                     end tell
-                end if
+                    return "focus_not_found"
+                end tell
             end tell
-        end tell
-        """)
+            """
+            runOSAScript(script)
+        }
     }
 
     /// Dark mode toggle
     private static func darkModeToggle() {
-        runAppleScript("""
-        tell application "System Events"
-            tell appearance preferences
-                set dark mode to not dark mode
-            end tell
-        end tell
-        """)
+        DispatchQueue.global(qos: .userInitiated).async {
+            runOSAScript("tell application \"System Events\" to tell appearance preferences to set dark mode to not dark mode")
+        }
     }
 }
