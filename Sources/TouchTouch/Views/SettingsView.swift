@@ -1066,7 +1066,8 @@ struct SettingsView: View {
                         value: $appState.pressThreshold,
                         range: 0.5...1.1,
                         suffix: "",
-                        scale: 100
+                        scale: 1,
+                        decimals: 1
                     )
                     Text("越低越灵敏，越高需要更用力")
                         .font(.system(size: 10))
