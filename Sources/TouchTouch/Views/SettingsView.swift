@@ -1362,8 +1362,6 @@ private struct DesignedSlider: View {
     /// 小数位数（nil=整数显示，默认）
     var decimals: Int? = nil
 
-    @GestureState private var isDragging = false
-
     var body: some View {
         VStack(spacing: 8) {
             HStack {
@@ -1383,13 +1381,16 @@ private struct DesignedSlider: View {
                 let progress = CGFloat((value - range.lowerBound) / (range.upperBound - range.lowerBound))
                 let thumbSize: CGFloat = 18
                 let trackHeight: CGFloat = 5
-                let thumbX = progress * (width - thumbSize)
+                let trackWidth = width - thumbSize  // thumb 左边缘范围
+                let thumbX = progress * trackWidth
 
                 ZStack(alignment: .leading) {
+                    // 背景轨道
                     Capsule()
                         .fill(Color.secondary.opacity(0.15))
                         .frame(height: trackHeight)
 
+                    // 填充轨道
                     Capsule()
                         .fill(
                             LinearGradient(
@@ -1400,26 +1401,25 @@ private struct DesignedSlider: View {
                         )
                         .frame(width: thumbX + thumbSize / 2, height: trackHeight)
 
+                    // Thumb
                     Circle()
                         .fill(Color.white)
                         .frame(width: thumbSize, height: thumbSize)
                         .shadow(color: Color.black.opacity(0.12), radius: 3, x: 0, y: 1)
-                        .shadow(color: Color.accentColor.opacity(isDragging ? 0.25 : 0.12), radius: isDragging ? 6 : 4)
+                        .shadow(color: Color.accentColor.opacity(0.12), radius: 4)
                         .overlay(Circle().strokeBorder(Color.accentColor.opacity(0.15), lineWidth: 0.5))
                         .offset(x: thumbX)
-                        .scaleEffect(isDragging ? 1.1 : 1.0)
-                        .animation(.spring(response: 0.25, dampingFraction: 0.7), value: isDragging)
                 }
                 .frame(height: max(thumbSize, trackHeight))
-                .contentShape(Rectangle().inset(by: -10))
+                .contentShape(Rectangle())
                 .gesture(
                     DragGesture(minimumDistance: 0)
-                        .updating($isDragging) { _, state, _ in state = true }
                         .onChanged { gesture in
-                            // 与显示映射一致：thumb 中心范围 [thumbSize/2, width - thumbSize/2]
-                            let halfThumb = thumbSize / 2
-                            let clampedX = max(halfThumb, min(width - halfThumb, gesture.location.x))
-                            let newProgress = (clampedX - halfThumb) / (width - thumbSize)
+                            // gesture.location.x 相对于 contentShape (Rectangle())
+                            // thumb 左边缘范围 [0, trackWidth]，中心范围 [halfThumb, width - halfThumb]
+                            let rawX = gesture.location.x
+                            let clampedThumbLeft = max(0, min(trackWidth, rawX - thumbSize / 2))
+                            let newProgress = trackWidth > 0 ? clampedThumbLeft / trackWidth : 0
                             let newValue = range.lowerBound + Double(newProgress) * (range.upperBound - range.lowerBound)
                             value = min(max(newValue, range.lowerBound), range.upperBound)
                         }
