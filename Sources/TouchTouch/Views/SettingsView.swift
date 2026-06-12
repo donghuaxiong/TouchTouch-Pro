@@ -1416,8 +1416,10 @@ private struct DesignedSlider: View {
                     DragGesture(minimumDistance: 0)
                         .updating($isDragging) { _, state, _ in state = true }
                         .onChanged { gesture in
-                            let newX = max(0, min(width, gesture.location.x))
-                            let newProgress = newX / width
+                            // 与显示映射一致：thumb 中心范围 [thumbSize/2, width - thumbSize/2]
+                            let halfThumb = thumbSize / 2
+                            let clampedX = max(halfThumb, min(width - halfThumb, gesture.location.x))
+                            let newProgress = (clampedX - halfThumb) / (width - thumbSize)
                             let newValue = range.lowerBound + Double(newProgress) * (range.upperBound - range.lowerBound)
                             value = min(max(newValue, range.lowerBound), range.upperBound)
                         }
