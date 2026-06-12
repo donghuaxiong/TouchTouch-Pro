@@ -93,6 +93,8 @@ final class MultiTouchSupportManager {
     var radialTriggerFingerCount: Int32 = 2
     /// 转盘触发是否需要按压
     var radialRequirePress: Bool = false
+    /// 转盘独立按压阈值（默认 0.9）
+    var radialPressThreshold: Float32 = 0.9
     /// 转盘触发成功回调
     nonisolated(unsafe) var onRadialTrigger: (() -> Void)?
     /// 当前是否有转盘触发触摸在进行（用于事件吞噬判断）
@@ -239,10 +241,10 @@ final class MultiTouchSupportManager {
         if !radialModeActive {
             let radialRequired = radialTriggerFingerCount
             if radialRequirePress {
-                if maxSize >= pressThreshold {
-                    radialPressDetected = true
-                }
+                // 每帧重新检测按压力度，使用独立阈值
+                radialPressDetected = maxSize >= radialPressThreshold
             } else {
+                // 轻触模式：始终允许
                 radialPressDetected = true
             }
 
