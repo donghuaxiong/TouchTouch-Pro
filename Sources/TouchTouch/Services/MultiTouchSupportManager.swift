@@ -70,7 +70,8 @@ final class MultiTouchSupportManager {
     var requirePress: Bool = false
     /// 按压检测阈值（size字段超过此值判定为按压）
     var pressThreshold: Float32 = 0.9
-    private var touchActive = false
+    /// 当前是否有多指触摸在进行（用于事件吞噬判断）
+    nonisolated(unsafe) var touchActive = false
     private var touchStartTime = Date.distantPast
     private var modifierHeld = false
     private var pressDetected = false  // 当前帧是否检测到按压
@@ -78,7 +79,7 @@ final class MultiTouchSupportManager {
 
     // ── 转盘模式（一触即达）──
     /// 外部设置为 true 时进入转盘模式，跳过长按/滑动逻辑
-    var radialModeActive: Bool = false
+    nonisolated(unsafe) var radialModeActive: Bool = false
     /// 旋转角度增量回调（基于手指上下滑动）
     nonisolated(unsafe) var onRadialRotation: ((Double) -> Void)?
     /// 手指抬起回调（转盘模式）
@@ -94,7 +95,8 @@ final class MultiTouchSupportManager {
     var radialRequirePress: Bool = false
     /// 转盘触发成功回调
     nonisolated(unsafe) var onRadialTrigger: (() -> Void)?
-    private var radialTouchActive = false
+    /// 当前是否有转盘触发触摸在进行（用于事件吞噬判断）
+    nonisolated(unsafe) var radialTouchActive = false
     private var radialTouchStartTime = Date.distantPast
     private var radialTriggerFired = false
     private var radialPressDetected = false
