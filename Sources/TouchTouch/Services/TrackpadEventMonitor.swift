@@ -465,10 +465,8 @@ final class TrackpadEventMonitor {
     }
 
     private nonisolated func shouldConsume(_ event: CGEvent) -> Bool {
-        // 手势激活时始终吞噬滚动事件，防止穿透到前台应用
+        // 转盘模式激活时吞噬滚动事件，防止穿透到前台应用
         if multiTouchManager.radialModeActive { return true }
-        if multiTouchManager.touchActive { return true }
-        if multiTouchManager.radialTouchActive { return true }
 
         let flags = event.flags
         let sessionFlags = CGEventSource.flagsState(.combinedSessionState)

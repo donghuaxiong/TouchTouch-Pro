@@ -290,6 +290,8 @@ final class MultiTouchSupportManager {
         if radialModeActive {
             onRadialFingerUp?()
             radialPreviousY = nil
+            touchActive = false
+            radialTouchActive = false
             return
         }
 
