@@ -77,7 +77,7 @@ final class MultiTouchSupportManager {
     private var pressDetected = false  // 当前帧是否检测到按压
     private let longPressDelay: TimeInterval = 0.3  // 长按延迟时间
 
-    // ── 转盘模式（一触即达）──
+    // ── 转盘模式（指尖菜单）──
     /// 外部设置为 true 时进入转盘模式，跳过长按/滑动逻辑
     nonisolated(unsafe) var radialModeActive: Bool = false
     /// 旋转角度增量回调（基于手指上下滑动）

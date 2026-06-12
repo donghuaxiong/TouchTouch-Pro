@@ -6,7 +6,7 @@ import SwiftUI
 enum SettingsTab: String, CaseIterable, Identifiable {
     case control = "控制方式"
     case gesture = "手势"
-    case radialMenu = "一触\n即达"
+    case radialMenu = "指尖\n菜单"
     case meeting = "会议模式"
     case sensitivity = "灵敏度"
     case feedback = "反馈"
@@ -34,6 +34,7 @@ enum SettingsTab: String, CaseIterable, Identifiable {
 struct SettingsView: View {
     @ObservedObject var appState: AppState
     @State private var selectedTab: SettingsTab = .control
+    @State private var isRadialItemsExpanded: Bool = false
 
     var body: some View {
         ZStack {
@@ -351,12 +352,12 @@ struct SettingsView: View {
         .padding(.vertical, 20)
     }
 
-    // MARK: - Radial Menu Tab (一触即达)
+    // MARK: - Radial Menu Tab (指尖菜单)
 
     private var radialMenuContent: some View {
-        VStack(alignment: .leading, spacing: 14) {
+        VStack(alignment: .leading, spacing: 12) {
             HStack {
-                sectionHeader(title: "一触即达", subtitle: "多指触发，旋转选择，松手执行")
+                sectionHeader(title: "指尖菜单", subtitle: "多指触发，滑动选择，松手执行")
                 Spacer()
                 Toggle("", isOn: $appState.isRadialMenuEnabled)
                     .toggleStyle(.switch)
@@ -368,12 +369,8 @@ struct SettingsView: View {
                 radialDisabledHint
             } else {
 
-            // 触发配置
-            VStack(alignment: .leading, spacing: 6) {
-                Text("触发方式")
-                    .font(.system(size: 11, weight: .medium))
-                    .foregroundStyle(.secondary)
-
+            // ── 触发方式 ──
+            radialSettingsCard(icon: "hand.tap.fill", title: "触发方式") {
                 // 手指数
                 HStack(spacing: 6) {
                     ForEach([1, 2, 3, 4], id: \.self) { count in
@@ -403,25 +400,31 @@ struct SettingsView: View {
                 }
             }
 
-            DesignedSlider(
-                title: "旋转灵敏度",
-                value: $appState.radialRotationSensitivity,
-                range: 1.0...15.0,
-                suffix: "",
-                scale: 1
-            )
-            Text("上下滑动速度越快，切换越灵敏")
-                .font(.system(size: 10))
-                .foregroundStyle(.tertiary)
+            // ── 灵敏度 ──
+            radialSettingsCard(icon: "gauge.with.dots.needle.bottom.50percent", title: "灵敏度") {
+                DesignedSlider(
+                    title: "旋转灵敏度",
+                    value: $appState.radialRotationSensitivity,
+                    range: 1.0...15.0,
+                    suffix: "",
+                    scale: 1
+                )
+                Text("上下滑动速度越快，切换越灵敏")
+                    .font(.system(size: 10))
+                    .foregroundStyle(.tertiary)
+            }
 
-            Divider().opacity(0.2)
+            // ── 主题选择 ──
+            radialSettingsCard(icon: "paintpalette.fill", title: "转盘主题") {
+                HStack(spacing: 10) {
+                    ForEach(RadialMenuTheme.allCases, id: \.self) { theme in
+                        radialThemeCard(theme)
+                    }
+                }
+            }
 
-            // 转盘项管理
-            VStack(alignment: .leading, spacing: 8) {
-                Text("转盘项目 (\(appState.radialMenuItems.count))")
-                    .font(.system(size: 11, weight: .medium))
-                    .foregroundStyle(.secondary)
-
+            // ── 转盘项目（可折叠）──
+            radialSettingsCard(icon: "circle.grid.2x2.fill", title: "转盘项目 (\(appState.radialMenuItems.count))", collapsible: true, isExpanded: $isRadialItemsExpanded) {
                 if appState.radialMenuItems.isEmpty {
                     HStack(spacing: 8) {
                         Image(systemName: "circle.grid.cross")
@@ -471,16 +474,176 @@ struct SettingsView: View {
                 }
             }
 
-            // 转盘预览
-            Divider().opacity(0.2)
-            VStack(alignment: .leading, spacing: 6) {
-                Text("预览")
-                    .font(.system(size: 11, weight: .medium))
-                    .foregroundStyle(.secondary)
+            // ── 预览 ──
+            radialSettingsCard(icon: "eye.fill", title: "预览") {
                 radialPreview
             }
 
             } // end of else (isRadialMenuEnabled)
+        }
+    }
+
+    // MARK: - Radial Settings Card
+
+    private func radialSettingsCard<Content: View>(
+        icon: String,
+        title: String,
+        collapsible: Bool = false,
+        isExpanded: Binding<Bool>? = nil,
+        @ViewBuilder content: () -> Content
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            // 卡片标题行
+            HStack(spacing: 6) {
+                Image(systemName: icon)
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(Color.accentColor)
+                Text(title)
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(.primary)
+
+                Spacer()
+
+                if collapsible, let isExpanded {
+                    Button {
+                        withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                            isExpanded.wrappedValue.toggle()
+                        }
+                    } label: {
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 10, weight: .bold))
+                            .foregroundStyle(.secondary)
+                            .rotationEffect(.degrees(isExpanded.wrappedValue ? 90 : 0))
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+
+            // 内容区
+            if !collapsible || (isExpanded?.wrappedValue ?? true) {
+                VStack(alignment: .leading, spacing: 8) {
+                    content()
+                }
+            }
+        }
+        .padding(12)
+        .background(
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .fill(Color.primary.opacity(0.04))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .strokeBorder(Color.primary.opacity(0.06), lineWidth: 0.5)
+        )
+    }
+
+    // MARK: - Radial Theme Card
+
+    private func radialThemeCard(_ theme: RadialMenuTheme) -> some View {
+        let isSelected = appState.radialMenuTheme == theme
+        return Button {
+            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                appState.radialMenuTheme = theme
+            }
+        } label: {
+            VStack(spacing: 6) {
+                // 迷你转盘预览
+                radialThemeMiniPreview(theme)
+                    .frame(width: 80, height: 80)
+
+                Text(theme.displayName)
+                    .font(.system(size: 12, weight: isSelected ? .bold : .medium))
+                    .foregroundStyle(isSelected ? .primary : .secondary)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 10)
+            .background(
+                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    .fill(isSelected ? Color.accentColor.opacity(0.12) : Color.secondary.opacity(0.06))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    .strokeBorder(isSelected ? Color.accentColor : Color.secondary.opacity(0.15), lineWidth: isSelected ? 1.5 : 0.5)
+            )
+        }
+        .buttonStyle(.plain)
+    }
+
+    @ViewBuilder
+    private func radialThemeMiniPreview(_ theme: RadialMenuTheme) -> some View {
+        let items = appState.radialMenuItems.isEmpty ? [
+            RadialMenuItem.system(.lockScreen),
+            RadialMenuItem.system(.screenshot),
+            RadialMenuItem.system(.darkModeToggle),
+            RadialMenuItem.system(.wifiToggle),
+            RadialMenuItem.system(.sleep),
+            RadialMenuItem.system(.spotlight)
+        ] : appState.radialMenuItems
+        let displayItems = Array(items.prefix(theme == .nova ? 8 : 6))
+        let count = displayItems.count
+
+        switch theme {
+        case .classic:
+            // 经典主题迷你预览
+            ZStack {
+                Circle()
+                    .fill(Color.black.opacity(0.6))
+                Circle()
+                    .stroke(Color.white.opacity(0.10), lineWidth: 0.5)
+                    .frame(width: 44, height: 44)
+                Circle()
+                    .fill(Color.black.opacity(0.8))
+                    .frame(width: 20, height: 20)
+                ForEach(0..<count, id: \.self) { i in
+                    let angle = (Double(i) / Double(count)) * 360 - 90
+                    let rad = angle * .pi / 180
+                    Circle()
+                        .fill(Color.white.opacity(0.5))
+                        .frame(width: 5, height: 5)
+                        .offset(x: cos(rad) * 22, y: sin(rad) * 22)
+                }
+            }
+            .frame(width: 80, height: 80)
+
+        case .nova:
+            // Nova 主题迷你预览
+            ZStack {
+                Circle()
+                    .fill(Color(red: 10/255, green: 10/255, blue: 11/255).opacity(0.8))
+                Circle()
+                    .strokeBorder(
+                        LinearGradient(
+                            colors: [Color.white.opacity(0.2), Color.white.opacity(0.05)],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        ),
+                        lineWidth: 0.5
+                    )
+                // 进度环
+                Circle()
+                    .trim(from: 0, to: 0.75)
+                    .stroke(Color(red: 71/255, green: 214/255, blue: 1).opacity(0.6), lineWidth: 1)
+                    .frame(width: 30, height: 30)
+                    .rotationEffect(.degrees(-90))
+                // 中心
+                Circle()
+                    .fill(Color(red: 10/255, green: 10/255, blue: 11/255))
+                    .frame(width: 16, height: 16)
+                ForEach(0..<count, id: \.self) { i in
+                    let angle = (Double(i) / Double(count)) * 360 - 90
+                    let rad = angle * .pi / 180
+                    let isSelected = i == 0
+                    RoundedRectangle(cornerRadius: 2, style: .continuous)
+                        .fill(isSelected ? Color(red: 0, green: 210/255, blue: 1).opacity(0.3) : Color.white.opacity(0.08))
+                        .frame(width: 6, height: 6)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 2, style: .continuous)
+                                .strokeBorder(isSelected ? Color(red: 0, green: 210/255, blue: 1).opacity(0.5) : Color.white.opacity(0.1), lineWidth: 0.3)
+                        )
+                        .offset(x: cos(rad) * 30, y: sin(rad) * 30)
+                }
+            }
+            .frame(width: 80, height: 80)
         }
     }
 
@@ -489,7 +652,7 @@ struct SettingsView: View {
             Image(systemName: "circle.grid.cross")
                 .font(.system(size: 18))
                 .foregroundStyle(.secondary.opacity(0.4))
-            Text("一触即达已关闭，请开启上方开关")
+            Text("指尖菜单已关闭，请开启上方开关")
                 .font(.system(size: 13))
                 .foregroundStyle(.secondary)
         }
@@ -632,28 +795,125 @@ struct SettingsView: View {
         let items = appState.radialMenuItems
         let count = items.count
 
-        return ZStack {
-            Circle()
-                .stroke(Color.secondary.opacity(0.2), lineWidth: 2)
-                .frame(width: 120, height: 120)
+        // 缩放比例：经典 discSize=320, nova discSize=320，预览统一用 150 直径
+        let scale: CGFloat = 150 / 320
 
-            Circle()
-                .stroke(Color.secondary.opacity(0.15), lineWidth: 1)
-                .frame(width: 44, height: 44)
+        switch appState.radialMenuTheme {
+        case .classic:
+            // 经典：ringRadius=115, centerRadius=52, iconSize=36
+            let previewRingRadius: CGFloat = 115 * scale
+            let previewCenterRadius: CGFloat = 52 * scale
+            let previewIconSize: CGFloat = 36 * scale
 
-            ForEach(Array(items.enumerated()), id: \.element.id) { index, item in
-                let angle = (Double(index) / Double(max(count, 1))) * 360 - 90
-                let radians = angle * .pi / 180
-                let radius: Double = 82
+            return AnyView(
+                ZStack {
+                    Circle()
+                        .fill(Color.black.opacity(0.72))
+                        .frame(width: 150, height: 150)
 
-                iconForRadialItem(item)
-                    .frame(width: 20, height: 20)
-                    .scaleEffect(0.75)
-                    .offset(x: cos(radians) * radius, y: sin(radians) * radius)
-            }
+                    Circle()
+                        .stroke(Color.white.opacity(0.10), lineWidth: 1)
+                        .frame(width: previewRingRadius * 2, height: previewRingRadius * 2)
+
+                    Circle()
+                        .fill(Color.black.opacity(0.85))
+                        .frame(width: previewCenterRadius * 2, height: previewCenterRadius * 2)
+
+                    Circle()
+                        .stroke(Color.white.opacity(0.12), lineWidth: 0.5)
+                        .frame(width: previewCenterRadius * 2, height: previewCenterRadius * 2)
+
+                    ForEach(Array(items.enumerated()), id: \.element.id) { index, item in
+                        let anglePerSegment = 360.0 / Double(max(count, 1))
+                        let midAngle = (Double(index) + 0.5) * anglePerSegment - 90
+                        let radians = midAngle * .pi / 180
+                        iconForRadialItem(item)
+                            .frame(width: previewIconSize, height: previewIconSize)
+                            .scaleEffect(scale)
+                            .offset(x: cos(radians) * previewRingRadius, y: sin(radians) * previewRingRadius)
+                    }
+                }
+                .frame(height: 170)
+                .frame(maxWidth: .infinity)
+            )
+
+        case .nova:
+            // Nova：ringRadius=120, centerRadius=52, itemSize=40, iconSize=36
+            let previewRingRadius: CGFloat = 120 * scale
+            let previewCenterRadius: CGFloat = 52 * scale
+            let previewIconSize: CGFloat = 36 * scale
+            let cyberBlue = Color(red: 0, green: 210/255, blue: 1)
+            let cyberBlueBright = Color(red: 71/255, green: 214/255, blue: 1)
+            let obsidian = Color(red: 10/255, green: 10/255, blue: 11/255)
+
+            return AnyView(
+                ZStack {
+                    // 毛玻璃圆盘
+                    Circle()
+                        .fill(obsidian.opacity(0.80))
+                        .frame(width: 150, height: 150)
+                        .overlay(
+                            Circle()
+                                .strokeBorder(
+                                    LinearGradient(
+                                        colors: [Color.white.opacity(0.2), Color.white.opacity(0.05)],
+                                        startPoint: .top,
+                                        endPoint: .bottom
+                                    ),
+                                    lineWidth: 0.5
+                                )
+                        )
+
+                    // 引导圆环
+                    Circle()
+                        .stroke(Color.white.opacity(0.05), lineWidth: 0.5)
+                        .frame(width: previewRingRadius * 2, height: previewRingRadius * 2)
+
+                    // 旋转圆环（闭合，与实际一致）
+                    Circle()
+                        .stroke(
+                            AngularGradient(
+                                colors: [cyberBlueBright, cyberBlueBright.opacity(0.5), cyberBlueBright.opacity(0.15), cyberBlueBright.opacity(0.5)],
+                                center: .center
+                            ),
+                            style: StrokeStyle(lineWidth: 1)
+                        )
+                        .frame(width: previewCenterRadius * 2 + 4, height: previewCenterRadius * 2 + 4)
+
+                    // 中心 Hub
+                    Circle()
+                        .fill(obsidian)
+                        .frame(width: previewCenterRadius * 2, height: previewCenterRadius * 2)
+                        .overlay(
+                            Circle()
+                                .strokeBorder(Color.white.opacity(0.10), lineWidth: 0.3)
+                        )
+
+                    // 图标
+                    ForEach(Array(items.enumerated()), id: \.element.id) { index, item in
+                        let anglePerSegment = 360.0 / Double(max(count, 1))
+                        let midAngle = (Double(index) + 0.5) * anglePerSegment - 90
+                        let radians = midAngle * .pi / 180
+                        let isSelected = index == 0
+
+                        iconForRadialItem(item)
+                            .frame(width: previewIconSize, height: previewIconSize)
+                            .scaleEffect(scale)
+                            .background(
+                                RoundedRectangle(cornerRadius: 10 * scale, style: .continuous)
+                                    .fill(isSelected ? cyberBlue.opacity(0.2) : Color.white.opacity(0.02))
+                            )
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 10 * scale, style: .continuous)
+                                    .strokeBorder(isSelected ? cyberBlue.opacity(0.5) : Color.white.opacity(0.05), lineWidth: 0.3)
+                            )
+                            .offset(x: cos(radians) * previewRingRadius, y: sin(radians) * previewRingRadius)
+                    }
+                }
+                .frame(height: 170)
+                .frame(maxWidth: .infinity)
+            )
         }
-        .frame(height: 135)
-        .frame(maxWidth: .infinity)
     }
 
     private func pickApp() {

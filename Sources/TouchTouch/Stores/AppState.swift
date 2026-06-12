@@ -122,7 +122,7 @@ final class AppState: ObservableObject {
 
     @Published var isMeetingMode: Bool = false
 
-    // ── 一触即达（转盘菜单）──
+    // ── 指尖菜单（转盘菜单）──
     @Published var isRadialMenuEnabled: Bool = false {
         didSet { defaults.set(isRadialMenuEnabled, forKey: Keys.isRadialMenuEnabled) }
     }
@@ -151,6 +151,9 @@ final class AppState: ObservableObject {
             defaults.set(radialPressThreshold, forKey: Keys.radialPressThreshold)
             setupRadialCallbacks()
         }
+    }
+    @Published var radialMenuTheme: RadialMenuTheme = .classic {
+        didSet { defaults.set(radialMenuTheme.rawValue, forKey: Keys.radialMenuTheme) }
     }
     @Published var radialMenuItems: [RadialMenuItem] = [] {
         didSet { persistRadialMenuItems() }
@@ -205,7 +208,8 @@ final class AppState: ObservableObject {
             Keys.radialTriggerFingerCount: 2,
             Keys.radialRequirePress: false,
             Keys.radialRotationSensitivity: 5.0,
-            Keys.radialPressThreshold: 0.9
+            Keys.radialPressThreshold: 0.9,
+            Keys.radialMenuTheme: RadialMenuTheme.classic.rawValue
         ])
 
         isEnabled = defaults.bool(forKey: Keys.isEnabled)
@@ -252,6 +256,9 @@ final class AppState: ObservableObject {
             radialPressThreshold = 0.9
         }
         radialMenuItems = Self.loadRadialMenuItems()
+        if let theme = RadialMenuTheme(rawValue: defaults.string(forKey: Keys.radialMenuTheme) ?? "") {
+            radialMenuTheme = theme
+        }
 
         refreshMonitoring()
         setupGestureCallbacks()
@@ -439,7 +446,7 @@ final class AppState: ObservableObject {
         }
     }
 
-    // MARK: - Radial Menu (一触即达)
+    // MARK: - Radial Menu (指尖菜单)
 
     private func setupRadialCallbacks() {
         eventMonitor.setRadialCallbacks(
@@ -465,7 +472,7 @@ final class AppState: ObservableObject {
 
         radialCumulativeAngle = 0
         radialCurrentSelection = 0
-        radialMenuManager.show(items: radialMenuItems, initialSelection: 0)
+        radialMenuManager.show(items: radialMenuItems, initialSelection: 0, theme: radialMenuTheme)
         eventMonitor.setRadialModeActive(true)
 
         if usesHaptics {
@@ -556,5 +563,6 @@ final class AppState: ObservableObject {
         static let radialRotationSensitivity = "radialRotationSensitivity"
         static let radialPressThreshold = "radialPressThreshold"
         static let radialMenuItems = "radialMenuItems"
+        static let radialMenuTheme = "radialMenuTheme"
     }
 }

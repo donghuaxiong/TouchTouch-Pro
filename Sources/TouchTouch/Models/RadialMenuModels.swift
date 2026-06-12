@@ -1,4 +1,26 @@
 import Foundation
+import CoreGraphics
+
+// MARK: - Radial Menu Theme
+
+enum RadialMenuTheme: String, Codable, CaseIterable {
+    case classic
+    case nova
+
+    var displayName: String {
+        switch self {
+        case .classic: return "经典"
+        case .nova: return "星际"
+        }
+    }
+
+    var panelSize: CGFloat {
+        switch self {
+        case .classic: return 360
+        case .nova: return 360
+        }
+    }
+}
 
 // MARK: - Radial Menu Item Type
 

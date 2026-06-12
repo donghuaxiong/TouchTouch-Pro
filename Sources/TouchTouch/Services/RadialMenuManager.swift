@@ -7,9 +7,10 @@ final class RadialMenuManager {
     private var panel: NSPanel?
     private(set) var state = RadialMenuState()
     private var items: [RadialMenuItem] = []
+    private var currentTheme: RadialMenuTheme = .classic
 
     /// Shows the radial menu with the given items, starting at the given index.
-    func show(items: [RadialMenuItem], initialSelection: Int = 0) {
+    func show(items: [RadialMenuItem], initialSelection: Int = 0, theme: RadialMenuTheme) {
         guard !items.isEmpty else { return }
 
         self.items = items
@@ -17,8 +18,15 @@ final class RadialMenuManager {
         state.selectedIndex = initialSelection
         state.isVisible = true
 
-        let panel = panel ?? makePanel()
-        panel.center()
+        // 主题变化时需要重建 panel（尺寸不同）
+        if theme != currentTheme {
+            panel?.orderOut(nil)
+            panel = nil
+            currentTheme = theme
+        }
+
+        let panel = panel ?? makePanel(theme: theme)
+        centerPanelOnScreen(panel)
         panel.orderFrontRegardless()
         self.panel = panel
     }
@@ -46,8 +54,8 @@ final class RadialMenuManager {
 
     // MARK: - Panel
 
-    private func makePanel() -> NSPanel {
-        let size = NSSize(width: 360, height: 360)
+    private func makePanel(theme: RadialMenuTheme) -> NSPanel {
+        let size = NSSize(width: theme.panelSize, height: theme.panelSize)
         let panel = NSPanel(
             contentRect: NSRect(origin: .zero, size: size),
             styleMask: [.borderless, .nonactivatingPanel],
@@ -55,7 +63,7 @@ final class RadialMenuManager {
             defer: false
         )
 
-        let hostingView = NSHostingView(rootView: RadialMenuView(state: state))
+        let hostingView = NSHostingView(rootView: RadialMenuView(theme: theme, state: state))
         hostingView.frame = NSRect(origin: .zero, size: size)
         hostingView.translatesAutoresizingMaskIntoConstraints = false
 
@@ -81,6 +89,19 @@ final class RadialMenuManager {
         panel.ignoresMouseEvents = true
         self.panel = panel
         return panel
+    }
+
+    /// 将 panel 精确居中到主屏幕可见区域
+    private func centerPanelOnScreen(_ panel: NSPanel) {
+        guard let screen = NSScreen.main else {
+            panel.center()
+            return
+        }
+        let visible = screen.visibleFrame
+        let panelSize = panel.frame.size
+        let x = visible.origin.x + (visible.width - panelSize.width) / 2
+        let y = visible.origin.y + (visible.height - panelSize.height) / 2
+        panel.setFrameOrigin(NSPoint(x: x, y: y))
     }
 }
 
