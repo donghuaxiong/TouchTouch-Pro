@@ -41,6 +41,12 @@ enum SystemActionKind: String, Codable, CaseIterable {
     case bluetoothToggle
     case doNotDisturb
     case darkModeToggle
+    case fullscreenToggle
+    case minimizeWindow
+    case hideApp
+    case clipboardHistory
+    case inputSourceSwitch
+    case launchpad
 
     var displayName: String {
         switch self {
@@ -53,6 +59,12 @@ enum SystemActionKind: String, Codable, CaseIterable {
         case .bluetoothToggle: return "蓝牙开关"
         case .doNotDisturb: return "勿扰模式"
         case .darkModeToggle: return "深色模式"
+        case .fullscreenToggle: return "全屏切换"
+        case .minimizeWindow: return "最小化"
+        case .hideApp: return "隐藏应用"
+        case .clipboardHistory: return "剪切板"
+        case .inputSourceSwitch: return "输入法"
+        case .launchpad: return "Launchpad"
         }
     }
 
@@ -67,6 +79,12 @@ enum SystemActionKind: String, Codable, CaseIterable {
         case .bluetoothToggle: return "wave.3.right"
         case .doNotDisturb: return "moon.zzz.fill"
         case .darkModeToggle: return "circle.lefthalf.filled"
+        case .fullscreenToggle: return "arrow.up.left.and.arrow.down.right"
+        case .minimizeWindow: return "minus.rectangle"
+        case .hideApp: return "eye.slash"
+        case .clipboardHistory: return "doc.on.clipboard"
+        case .inputSourceSwitch: return "character.bubble"
+        case .launchpad: return "square.grid.2x2"
         }
     }
 }

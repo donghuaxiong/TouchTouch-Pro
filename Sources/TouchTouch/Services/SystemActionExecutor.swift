@@ -24,6 +24,18 @@ enum SystemActionExecutor {
             doNotDisturb()
         case .darkModeToggle:
             darkModeToggle()
+        case .fullscreenToggle:
+            fullscreenToggle()
+        case .minimizeWindow:
+            minimizeWindow()
+        case .hideApp:
+            hideApp()
+        case .clipboardHistory:
+            clipboardHistory()
+        case .inputSourceSwitch:
+            inputSourceSwitch()
+        case .launchpad:
+            launchpad()
         }
     }
 
@@ -264,6 +276,58 @@ enum SystemActionExecutor {
     private static func darkModeToggle() {
         DispatchQueue.global(qos: .userInitiated).async {
             runOSAScript("tell application \"System Events\" to tell appearance preferences to set dark mode to not dark mode")
+        }
+    }
+
+    // MARK: - Window Management
+
+    /// Fullscreen toggle: Ctrl + Cmd + F
+    private static func fullscreenToggle() {
+        sendShortcut(keyCode: 3, flags: [.maskCommand, .maskControl])  // F key
+    }
+
+    /// Minimize window: Cmd + M
+    private static func minimizeWindow() {
+        sendShortcut(keyCode: 46, flags: [.maskCommand])  // M key
+    }
+
+    /// Hide current app: Cmd + H
+    private static func hideApp() {
+        sendShortcut(keyCode: 4, flags: [.maskCommand])  // H key
+    }
+
+    // MARK: - System Features
+
+    /// Input source switch: Ctrl + Space
+    private static func inputSourceSwitch() {
+        sendShortcut(keyCode: 49, flags: [.maskControl])  // Space key
+    }
+
+    /// Launchpad: open -a Launchpad
+    private static func launchpad() {
+        DispatchQueue.global(qos: .userInitiated).async {
+            _ = ProcessRunner.run(
+                URL(fileURLWithPath: "/usr/bin/open"),
+                arguments: ["-a", "Launchpad"]
+            )
+        }
+    }
+
+    /// Clipboard history: 尝试模拟快捷键，macOS 15.4+ 支持
+    private static func clipboardHistory() {
+        DispatchQueue.global(qos: .userInitiated).async {
+            // macOS Sequoia 15.4+ 使用 Fn+V 打开剪切板历史
+            // 通过 AppleScript 模拟
+            let script = """
+            tell application "System Events"
+                key code 9 using {fn down}
+            end tell
+            """
+            let output = runOSAScript(script)
+            // 如果失败，尝试使用 Ctrl+Cmd+V
+            if output.contains("error") || output.contains("错误") {
+                sendShortcut(keyCode: 9, flags: [.maskCommand, .maskControl])  // V key
+            }
         }
     }
 }
