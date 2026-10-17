@@ -37,12 +37,23 @@ echo "==> Architectures: $(lipo -info "$BUILD_BINARY" 2>/dev/null | sed 's/.*: /
 
 echo "==> Generating app icon ..."
 swift "$SCRIPT_DIR/generate_icon.swift" "$DIST_DIR"
+ICONSET="$DIST_DIR/$ICON_NAME.iconset"
+mkdir -p "$ICONSET"
+for size in 16 32 128 256 512; do
+    sips -z "$size" "$size" "$DIST_DIR/$ICON_NAME.png" \
+        --out "$ICONSET/icon_${size}x${size}.png" >/dev/null
+    double_size=$((size * 2))
+    sips -z "$double_size" "$double_size" "$DIST_DIR/$ICON_NAME.png" \
+        --out "$ICONSET/icon_${size}x${size}@2x.png" >/dev/null
+done
+iconutil -c icns "$ICONSET" -o "$DIST_DIR/$ICON_NAME.icns"
+rm -rf "$ICONSET"
 
 echo "==> Creating app bundle ..."
 mkdir -p "$MACOS_DIR" "$RESOURCES_DIR"
 cp "$BUILD_BINARY" "$BINARY"
 chmod +x "$BINARY"
-cp "$DIST_DIR/AppIcon.png" "$RESOURCES_DIR/AppIcon.png"
+cp "$DIST_DIR/$ICON_NAME.icns" "$RESOURCES_DIR/$ICON_NAME.icns"
 
 # Copy kb-brightness helper tool into bundle
 KB_BIN="$ROOT_DIR/.build/apple/Products/Release/kb-brightness"
@@ -51,7 +62,8 @@ if [ -f "$KB_BIN" ]; then
     chmod +x "$MACOS_DIR/kb-brightness"
     echo "    Included kb-brightness helper"
 else
-    echo "    WARNING: kb-brightness not found, keyboard backlight will not work"
+    echo "ERROR: kb-brightness not found: $KB_BIN" >&2
+    exit 1
 fi
 
 cat >"$INFO_PLIST" <<PLIST
